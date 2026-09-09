@@ -1,0 +1,26 @@
+@import "tailwindcss";
+
+/* Misma paleta que el sitio público (D:\Portfolio\UsoInmobiliario\index.html) — consistencia
+   de marca entre el catálogo público y este panel interno, no una coincidencia. */
+@theme {
+  --color-ink: #20241f;
+  --color-paper: #f5f0e6;
+  --color-paper-2: #efe7d8;
+  --color-card: #faf6ec;
+  --color-forest: #33513f;
+  --color-forest-dk: #22362a;
+  --color-clay: #b6603c;
+  --color-sand: #e4d8c3;
+  --color-ochre: #9c7b3f;
+  --color-line: #20241f24;
+
+  --font-display: 'Fraunces', ui-serif, Georgia, serif;
+  --font-sans: 'Karla', ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+  margin: 0;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
