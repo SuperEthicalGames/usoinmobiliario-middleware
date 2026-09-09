@@ -1,8 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api, ApiError } from '../api';
-import type { Apartment, ReservationRecord } from '../types';
-import { Button, Card, PageHeader, fmtCOP } from '../components/ui';
+import { api, ApiError, describeApiError } from '../api';
+import type { Apartment, Categories, ReservationRecord } from '../types';
+import { AsyncSection, Button, Card, PageHeader, fmtCOP } from '../components/ui';
 
 const ERROR_MESSAGES: Record<string, string> = {
   'dates-taken': 'Esas fechas ya no están disponibles para esta unidad.',
@@ -13,6 +13,9 @@ const ERROR_MESSAGES: Record<string, string> = {
 export function ManualReservation() {
   const navigate = useNavigate();
   const [apartments, setApartments] = useState<Apartment[] | null>(null);
+  const [categories, setCategories] = useState<Categories | null>(null);
+  const [loadingApts, setLoadingApts] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedKey, setSelectedKey] = useState('');
   const [checkin, setCheckin] = useState('');
   const [checkout, setCheckout] = useState('');
@@ -26,9 +29,25 @@ export function ManualReservation() {
   const [missingFields, setMissingFields] = useState<string[]>([]);
   const [created, setCreated] = useState<ReservationRecord | null>(null);
 
-  useEffect(() => {
-    api.getApartments().then((apts) => setApartments(apts.filter((a) => a.status === 'disponible')));
-  }, []);
+  // ANTES: sin catch acá — si esta llamada fallaba (por ejemplo el cold-start del backend
+  // gratuito en Render), el selector se quedaba vacío para siempre, sin aviso ni forma de
+  // reintentar. Bug real, no solo falta de estilo.
+  function loadApartments() {
+    setLoadingApts(true);
+    setLoadError(null);
+    Promise.all([api.getApartments(), api.getCategories()])
+      .then(([apts, cats]) => {
+        setApartments(apts.filter((a) => a.status === 'disponible'));
+        setCategories(cats);
+      })
+      .catch((err) => setLoadError(describeApiError(err)))
+      .finally(() => setLoadingApts(false));
+  }
+  useEffect(loadApartments, []);
+
+  function categoryLabel(typeKey: string): string {
+    return categories?.[typeKey]?.catLabel?.es ?? typeKey;
+  }
 
   const selected = apartments?.find((a) => a._key === selectedKey);
 
@@ -46,7 +65,7 @@ export function ManualReservation() {
       setCreated(rec);
     } catch (err) {
       if (err instanceof ApiError) {
-        setError(ERROR_MESSAGES[err.code] ?? `No se pudo crear la reserva (${err.code}).`);
+        setError(ERROR_MESSAGES[err.code] ?? describeApiError(err));
         setMissingFields(err.missingFields ?? []);
       } else {
         setError('Ocurrió un error inesperado.');
@@ -79,6 +98,8 @@ export function ManualReservation() {
   return (
     <div>
       <PageHeader title="Reserva manual" subtitle="A nombre de un cliente — mismo flujo y mismas reglas que una reserva del sitio." />
+      <AsyncSection loading={loadingApts} error={loadError} data={apartments} empty="No hay apartamentos disponibles para reservar en este momento." onRetry={loadApartments}>
+        {() => (
       <form onSubmit={onSubmit} className="max-w-xl space-y-4">
         <Card className="space-y-4 p-6">
           <label className="block text-sm">
@@ -89,7 +110,7 @@ export function ManualReservation() {
             >
               <option value="">Selecciona un apartamento disponible...</option>
               {apartments?.map((a) => (
-                <option key={a._key} value={a._key}>Apartamento H{a.num} ({a.typeKey}, {a.maxPersons} huésp.)</option>
+                <option key={a._key} value={a._key}>Apartamento H{a.num} — {categoryLabel(a.typeKey)} ({a.maxPersons} huésp. máx.)</option>
               ))}
             </select>
           </label>
@@ -154,6 +175,8 @@ export function ManualReservation() {
           {submitting ? 'Creando...' : 'Crear reserva'}
         </Button>
       </form>
+        )}
+      </AsyncSection>
     </div>
   );
 }

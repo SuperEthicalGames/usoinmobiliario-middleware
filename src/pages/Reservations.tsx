@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { api, ApiError } from '../api';
+import { api, describeApiError } from '../api';
 import type { ReservationRecord, ReservationStatus } from '../types';
 import { AsyncSection, Card, PageHeader, Button, fmtCOP, fmtDate } from '../components/ui';
 import { StatusBadge, PaymentBadge } from '../components/StatusBadge';
@@ -28,7 +28,7 @@ export function Reservations() {
     setError(null);
     api.getReservations()
       .then((recs) => setData(recs.sort((a, b) => b.createdAt.localeCompare(a.createdAt))))
-      .catch((err) => setError(err instanceof ApiError ? `No se pudieron cargar las reservas (${err.code}).` : 'No se pudieron cargar las reservas.'))
+      .catch((err) => setError(describeApiError(err)))
       .finally(() => setLoading(false));
   }
   useEffect(load, []);
@@ -76,6 +76,7 @@ export function Reservations() {
       <AsyncSection loading={loading} error={error} data={filtered} empty="No hay reservas con este filtro." onRetry={load}>
         {(recs) => (
           <Card className="overflow-x-auto">
+            <p className="border-b border-line px-4 py-2 text-xs text-ink/40">Clic en una fila para ver el detalle completo y confirmar, rechazar, cancelar o completar.</p>
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-line text-left text-xs uppercase tracking-wide text-ink/50">
@@ -84,8 +85,8 @@ export function Reservations() {
                   <th className="px-4 py-3">Cliente</th>
                   <th className="px-4 py-3">Fechas</th>
                   <th className="px-4 py-3">Total</th>
-                  <th className="px-4 py-3">Estado</th>
-                  <th className="px-4 py-3">Pago</th>
+                  <th className="px-4 py-3" title="Estado de la reserva en sí: pendiente/confirmada/rechazada/cancelada/completada">Estado</th>
+                  <th className="px-4 py-3" title="Estado del pago, independiente del estado de la reserva">Pago</th>
                 </tr>
               </thead>
               <tbody>

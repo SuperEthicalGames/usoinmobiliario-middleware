@@ -13,7 +13,11 @@ const NAV_ITEMS = [
 ];
 
 export function Layout() {
-  const { user, logout } = useAuth();
+  const { user, isSuperAdmin, logout } = useAuth();
+  // Administradores solo aparece para el super admin — restricción real vive en el backend
+  // (requireSuperAdmin), esto es solo para no mostrarle a un admin normal un link a algo que
+  // de todas formas el servidor le va a rechazar con 403.
+  const navItems = isSuperAdmin ? [...NAV_ITEMS, { to: '/administradores', label: 'Administradores' }] : NAV_ITEMS;
 
   return (
     <div className="flex min-h-screen bg-paper">
@@ -25,7 +29,7 @@ export function Layout() {
           <div className="text-xs uppercase tracking-wide text-ink/50">Panel administrativo</div>
         </div>
         <nav className="flex-1 space-y-1 px-3 py-4">
-          {NAV_ITEMS.map((item) => (
+          {navItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
@@ -42,7 +46,12 @@ export function Layout() {
         </nav>
         <div className="border-t border-line px-4 py-4">
           <div className="truncate text-xs text-ink/50" title={user?.email ?? ''}>{user?.email}</div>
-          <button onClick={() => logout()} className="mt-2 text-sm font-bold text-clay hover:underline">
+          {isSuperAdmin && (
+            <span className="mt-1 inline-flex items-center rounded-full bg-forest/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-forest">
+              Admin principal
+            </span>
+          )}
+          <button onClick={() => logout()} className="mt-2 block text-sm font-bold text-clay hover:underline">
             Cerrar sesión
           </button>
         </div>

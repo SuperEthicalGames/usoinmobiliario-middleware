@@ -129,3 +129,26 @@ export interface ApiErrorBody {
   error: string;
   missingFields?: string[];
 }
+
+// catLabel es el nombre real que ya usa el sitio público (index.html) — "Amoblado 1 Ambiente" /
+// "Amoblado 2 Ambientes" — nunca se inventa una traducción nueva de "estudio"/"dos" acá.
+export interface Category {
+  catLabel: BilingualText;
+  name: BilingualText;
+  blurb?: BilingualText;
+}
+export type Categories = Record<string, Category>;
+
+export interface MeInfo {
+  uid: string;
+  email: string;
+  isSuperAdmin: boolean;
+}
+
+export interface AdminUser {
+  uid: string;
+  email: string | null;
+  disabled: boolean;
+  createdAt: string;
+  lastSignInAt: string | null;
+}

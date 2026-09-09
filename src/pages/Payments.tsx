@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { api, ApiError } from '../api';
+import { api, describeApiError } from '../api';
 import type { ReservationRecord } from '../types';
 import { AsyncSection, Card, PageHeader, Button, fmtCOP, fmtDate } from '../components/ui';
 
@@ -52,7 +52,7 @@ export function Payments() {
     setError(null);
     api.getReservations()
       .then(setData)
-      .catch((err) => setError(err instanceof ApiError ? `No se pudieron cargar los pagos (${err.code}).` : 'No se pudieron cargar los pagos.'))
+      .catch((err) => setError(describeApiError(err)))
       .finally(() => setLoading(false));
   }
   useEffect(load, []);
@@ -68,7 +68,7 @@ export function Payments() {
       const updated = await fn(code);
       setData((prev) => prev?.map((r) => (r.code === code ? updated : r)) ?? prev);
     } catch (err) {
-      setActionError(err instanceof ApiError ? `No se pudo procesar (${err.code}).` : 'Ocurrió un error.');
+      setActionError(describeApiError(err));
     } finally {
       setBusyCode(null);
     }
@@ -77,6 +77,9 @@ export function Payments() {
   return (
     <div>
       <PageHeader title="Pagos" subtitle="Verificación manual — el cliente nunca confirma su propio pago." />
+      <p className="mb-4 text-xs text-ink/40">
+        Verificar/Registrar solo marca el PAGO como en orden — la reserva sigue en "pendiente" hasta que la confirmes aparte desde Reservas.
+      </p>
       {actionError && <p className="mb-4 text-sm text-clay">{actionError}</p>}
       <AsyncSection loading={loading} error={error} data={data} onRetry={load}>
         {() => (

@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { RecordAction, ReservationRecord } from '../types';
-import { api, ApiError } from '../api';
+import { api, describeApiError } from '../api';
 import { Button, fmtCOP, fmtDate } from './ui';
 import { PaymentBadge, StatusBadge, TypeBadge } from './StatusBadge';
 
@@ -8,11 +8,11 @@ import { PaymentBadge, StatusBadge, TypeBadge } from './StatusBadge';
 // mismo criterio que setReservationStatus en el backend, un solo componente para las dos.
 const PAYMENT_METHOD_LABELS: Record<string, string> = { bank_transfer: 'Transferencia bancaria', cash: 'Efectivo' };
 
-const ACTIONS: { key: RecordAction; label: string; variant: 'primary' | 'ghost' | 'danger'; when: (r: ReservationRecord) => boolean }[] = [
-  { key: 'confirm', label: 'Confirmar', variant: 'primary', when: (r) => r.status === 'pendiente' },
-  { key: 'reject', label: 'Rechazar', variant: 'danger', when: (r) => r.status === 'pendiente' },
-  { key: 'cancel', label: 'Cancelar', variant: 'ghost', when: (r) => r.status === 'pendiente' || r.status === 'confirmada' },
-  { key: 'complete', label: 'Completar', variant: 'primary', when: (r) => r.status === 'confirmada' },
+const ACTIONS: { key: RecordAction; label: string; hint: string; variant: 'primary' | 'ghost' | 'danger'; when: (r: ReservationRecord) => boolean }[] = [
+  { key: 'confirm', label: 'Confirmar', hint: 'Aprueba la reserva/cita — el HOLD deja de importar', variant: 'primary', when: (r) => r.status === 'pendiente' },
+  { key: 'reject', label: 'Rechazar', hint: 'La rechaza y libera las fechas/horario para otros clientes', variant: 'danger', when: (r) => r.status === 'pendiente' },
+  { key: 'cancel', label: 'Cancelar', hint: 'Cancela una reserva/cita ya en curso y libera las fechas/horario', variant: 'ghost', when: (r) => r.status === 'pendiente' || r.status === 'confirmada' },
+  { key: 'complete', label: 'Completar', hint: 'Marca la estadía/visita como ya realizada', variant: 'primary', when: (r) => r.status === 'confirmada' },
 ];
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
@@ -34,6 +34,12 @@ export function RecordDetail({ record, onClose, onUpdated }: {
   const [error, setError] = useState<string | null>(null);
   const isVisit = record.type === 'cita';
 
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') onClose(); }
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
   async function run(action: RecordAction) {
     setBusy(action);
     setError(null);
@@ -41,7 +47,7 @@ export function RecordDetail({ record, onClose, onUpdated }: {
       const updated = await api.runRecordAction(record.code, action);
       onUpdated(updated);
     } catch (err) {
-      setError(err instanceof ApiError ? `No se pudo ${action} (${err.code}).` : 'Ocurrió un error.');
+      setError(describeApiError(err));
     } finally {
       setBusy(null);
     }
@@ -65,6 +71,7 @@ export function RecordDetail({ record, onClose, onUpdated }: {
         </div>
 
         <div className="divide-y divide-line rounded-xl border border-line px-4">
+          <Row label="Creado" value={new Date(record.createdAt).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' })} />
           <Row label="Unidad" value={record.unitLabel} />
           <Row label="Nombre" value={record.name} />
           <Row label="Teléfono" value={record.phone} />
@@ -107,7 +114,7 @@ export function RecordDetail({ record, onClose, onUpdated }: {
 
         <div className="mt-6 flex flex-wrap gap-2">
           {ACTIONS.filter((a) => a.when(record)).map((a) => (
-            <Button key={a.key} variant={a.variant} disabled={!!busy} onClick={() => run(a.key)}>
+            <Button key={a.key} variant={a.variant} disabled={!!busy} onClick={() => run(a.key)} title={a.hint}>
               {busy === a.key ? '...' : a.label}
             </Button>
           ))}
