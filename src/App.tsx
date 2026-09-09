@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './AuthContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Layout } from './components/Layout';
@@ -49,11 +49,11 @@ function Gate() {
 export function App() {
   return (
     <ErrorBoundary>
-      <BrowserRouter basename="/usoinmobiliario-middleware">
+      <HashRouter>
         <AuthProvider>
           <Gate />
         </AuthProvider>
-      </BrowserRouter>
+      </HashRouter>
     </ErrorBoundary>
   );
 }
