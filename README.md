@@ -4,7 +4,7 @@ Reemplaza el panel de administración de Unity (nunca terminado). React + Vite +
 Tailwind CSS. No tiene backend propio — todas las acciones administrativas (confirmar/rechazar
 reservas, verificar pagos, etc.) pasan por `/admin/api/*` en el backend que ya está desplegado
 para el bot de WhatsApp: `D:\Portfolio\UsoInmobiliario\whatsapp-assistant\` (repo
-[usoinmobiliariodemo](https://github.com/SuperEthicalGames/usoinmobiliariodemo), servicio
+[usoinmobiliario-webdemo](https://github.com/SuperEthicalGames/usoinmobiliario-webdemo), servicio
 `usoinmobiliario-whatsapp-bot` en Render). Ver el plan original para el porqué de esta decisión
 (reusar ese backend en vez de reimplementar la lógica de negocio una tercera vez).
 
