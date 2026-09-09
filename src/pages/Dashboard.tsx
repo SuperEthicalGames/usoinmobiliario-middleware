@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { api, describeApiError } from '../api';
 import type { DashboardSummary } from '../types';
 import { AsyncSection, Card, PageHeader, Button, fmtDate } from '../components/ui';
+import { StatusBadge } from '../components/StatusBadge';
 
 // Cada tarjeta explica en una línea qué significa el número — la queja de que "el dashboard no
 // se actualiza bien" muchas veces es en realidad "no sé si este número está fresco o qué
@@ -99,13 +100,17 @@ export function Dashboard() {
               </div>
             </div>
             <div>
-              <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-ink/50">Próximas visitas</h2>
+              <h2 className="mb-1 text-sm font-bold uppercase tracking-wide text-ink/50">Próximas visitas</h2>
+              <p className="mb-3 text-xs text-ink/40">Confirmadas y pendientes de confirmar, de hoy en adelante — rechazadas/canceladas/completadas no aparecen acá.</p>
               <Card className="divide-y divide-line">
                 {summary.upcomingVisits.length === 0 && <p className="p-5 text-sm text-ink/50">No hay visitas próximas.</p>}
                 {summary.upcomingVisits.map((v) => (
                   <div key={v.code} className="flex items-center justify-between gap-4 px-5 py-3">
                     <div>
-                      <div className="font-bold text-ink">{v.unitLabel}</div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-ink">{v.unitLabel}</span>
+                        <StatusBadge status={v.status} />
+                      </div>
                       <div className="text-xs text-ink/50">{v.name} · {v.code}</div>
                     </div>
                     <div className="text-right text-sm text-ink/70">
