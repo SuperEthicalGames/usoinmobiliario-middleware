@@ -88,6 +88,7 @@ export const API_ERROR_MESSAGES: Record<string, string> = {
   'not-authenticated': 'Tu sesión no es válida. Cierra sesión y vuelve a entrar.',
   'invalid-token': 'Tu sesión venció. Cierra sesión y vuelve a entrar.',
   'not-super-admin': 'Esta acción es solo para el administrador principal.',
+  'reservation-not-active': 'Esta reserva ya está rechazada o cancelada — no se puede verificar/rechazar su pago.',
 };
 export function describeApiError(err: unknown): string {
   if (err instanceof ApiError) return API_ERROR_MESSAGES[err.code] ?? `Ocurrió un error (${err.code}).`;

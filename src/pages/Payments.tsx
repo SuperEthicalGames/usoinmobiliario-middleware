@@ -6,8 +6,14 @@ import { AsyncSection, Card, PageHeader, Button, fmtCOP, fmtDate } from '../comp
 // Mismo criterio de filtrado que PaymentService.GetPendingVerificationAsync/GetPendingCashAsync
 // en Unity: traer TODAS las reservas (ya lo hace /admin/api/reservations) y derivar las dos
 // listas acá, en vez de inventar dos endpoints nuevos solo para esto.
-function isPendingVerification(r: ReservationRecord) { return r.type === 'reserva' && r.paymentStatus === 'submitted'; }
-function isPendingCash(r: ReservationRecord) { return r.type === 'reserva' && r.paymentMethod === 'cash' && r.paymentStatus === 'none'; }
+// isActive: el backend nunca limpia paymentStatus al rechazar/cancelar una reserva — sin este
+// chequeo, una reserva ya muerta con un pago reportado antes de morir se quedaba apareciendo
+// para siempre acá (bug real encontrado en auditoría; el backend ahora también rechaza
+// verificar/rechazar pago sobre una reserva rechazada/cancelada, pero el filtro tiene que
+// coincidir para no mostrarla como si todavía necesitara acción).
+function isActive(r: ReservationRecord) { return r.status !== 'rechazada' && r.status !== 'cancelada'; }
+function isPendingVerification(r: ReservationRecord) { return r.type === 'reserva' && r.paymentStatus === 'submitted' && isActive(r); }
+function isPendingCash(r: ReservationRecord) { return r.type === 'reserva' && r.paymentMethod === 'cash' && r.paymentStatus === 'none' && isActive(r); }
 
 function ActionRow({ r, busyCode, onVerify, onReject, onCash }: {
   r: ReservationRecord;

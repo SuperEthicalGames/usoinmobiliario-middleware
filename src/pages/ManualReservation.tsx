@@ -37,7 +37,13 @@ export function ManualReservation() {
     setLoadError(null);
     Promise.all([api.getApartments(), api.getCategories()])
       .then(([apts, cats]) => {
-        setApartments(apts.filter((a) => a.status === 'disponible'));
+        // (a.effectiveStatus ?? a.status), NUNCA a.status solo — mismo criterio que Apartments.tsx.
+        // Antes filtraba solo por a.status (el campo manual): si una reserva CONFIRMADA ya
+        // marcaba el apartamento en-uso/reservado pero nadie había actualizado a mano el campo
+        // crudo en Firebase, este selector lo seguía mostrando como "disponible" para armar una
+        // reserva manual encima — el backend rechaza el choque real de fechas, pero el selector
+        // no debería ni ofrecerlo como opción.
+        setApartments(apts.filter((a) => (a.effectiveStatus ?? a.status) === 'disponible'));
         setCategories(cats);
       })
       .catch((err) => setLoadError(describeApiError(err)))
