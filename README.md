@@ -33,14 +33,10 @@ para trabajar en la UI, ya que los ID tokens de Firebase Auth son reales de toda
 
 ## Desplegar (GitHub Pages)
 
-```bash
-npm run deploy
-```
-
-Compila y publica `dist/` a la rama `gh-pages` (usa el paquete `gh-pages`, mismo mecanismo
-"Deploy from branch" ya usado por el sitio público — no GitHub Actions). **Pasos manuales, una
-sola vez, en la configuración del repo en GitHub**: Settings → Pages → Deploy from branch →
-`gh-pages` / `/(root)`.
+Automático: `.github/workflows/deploy.yml` compila y publica en cada push a `main` (GitHub
+Pages ya está configurado en este repo con el origen "GitHub Actions", no "Deploy from branch"
+— por eso el workflow, no un script local). También se puede disparar a mano desde la pestaña
+Actions del repo ("Run workflow").
 
 ## Pendiente (pasos manuales del dueño, fuera del código)
 
