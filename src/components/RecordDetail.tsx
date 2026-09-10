@@ -3,6 +3,7 @@ import type { RecordAction, ReservationRecord } from '../types';
 import { api, describeApiError } from '../api';
 import { Button, fmtCOP, fmtDate } from './ui';
 import { PaymentBadge, StatusBadge, TypeBadge } from './StatusBadge';
+import { CloseIcon, ExternalLinkIcon } from './icons';
 
 // Reservas y citas comparten la misma máquina de estados (confirm/reject/cancel/complete) —
 // mismo criterio que setReservationStatus en el backend, un solo componente para las dos.
@@ -19,7 +20,7 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
   if (value == null || value === '') return null;
   return (
     <div className="flex justify-between gap-4 py-1.5 text-sm">
-      <span className="text-ink/50">{label}</span>
+      <span className="text-muted">{label}</span>
       <span className="text-right font-bold text-ink">{value}</span>
     </div>
   );
@@ -32,7 +33,14 @@ export function RecordDetail({ record, onClose, onUpdated }: {
 }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [show, setShow] = useState(false);
   const isVisit = record.type === 'cita';
+  const canTrackStay = !isVisit && record.status === 'confirmada';
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setShow(true));
+    return () => cancelAnimationFrame(frame);
+  }, []);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) { if (e.key === 'Escape') onClose(); }
@@ -53,21 +61,42 @@ export function RecordDetail({ record, onClose, onUpdated }: {
     }
   }
 
+  async function runCheck(kind: 'check-in' | 'check-out') {
+    setBusy(kind);
+    setError(null);
+    try {
+      const updated = await (kind === 'check-in' ? api.checkIn(record.code) : api.checkOut(record.code));
+      onUpdated(updated);
+    } catch (err) {
+      setError(describeApiError(err));
+    } finally {
+      setBusy(null);
+    }
+  }
+
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-ink/40" onClick={onClose}>
-      <div className="h-full w-full max-w-md overflow-y-auto bg-card p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+    <div
+      className={`fixed inset-0 z-50 flex justify-end bg-graphite-950/50 transition-opacity duration-200 ${show ? 'opacity-100' : 'opacity-0'}`}
+      onClick={onClose}
+    >
+      <div
+        className={`h-full w-full max-w-md overflow-y-auto bg-card p-6 shadow-2xl transition-transform duration-200 ease-out ${show ? 'translate-x-0' : 'translate-x-full'}`}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
             <div className="flex items-center gap-2">
               <span className="font-display text-xl font-semibold text-ink">{record.code}</span>
               <TypeBadge type={record.type} />
             </div>
-            <div className="mt-1 flex gap-2">
+            <div className="mt-2 flex flex-wrap gap-2">
               <StatusBadge status={record.status} />
               {!isVisit && record.paymentStatus && <PaymentBadge status={record.paymentStatus} />}
             </div>
           </div>
-          <button onClick={onClose} className="text-xl text-ink/50 hover:text-ink" aria-label="Cerrar">✕</button>
+          <button onClick={onClose} className="rounded-lg p-1.5 text-muted transition hover:bg-paper-2 hover:text-ink" aria-label="Cerrar">
+            <CloseIcon className="h-5 w-5" />
+          </button>
         </div>
 
         <div className="divide-y divide-line rounded-xl border border-line px-4">
@@ -97,20 +126,42 @@ export function RecordDetail({ record, onClose, onUpdated }: {
 
         {!isVisit && record.paymentReport && (
           <div className="mt-4 rounded-xl border border-line px-4 py-3">
-            <div className="mb-1 text-xs font-bold uppercase tracking-wide text-ink/50">Comprobante reportado</div>
+            <div className="mb-1 text-xs font-bold uppercase tracking-wide text-muted">Comprobante reportado</div>
             <Row label="Banco" value={record.paymentReport.bank} />
             <Row label="Referencia" value={record.paymentReport.reference} />
             <Row label="Monto" value={fmtCOP(record.paymentReport.amount)} />
             <Row label="Fecha" value={fmtDate(record.paymentReport.date)} />
             {record.paymentReport.proofUrl && (
-              <a href={record.paymentReport.proofUrl} target="_blank" rel="noopener" className="text-sm font-bold text-forest underline">
+              <a href={record.paymentReport.proofUrl} target="_blank" rel="noopener" className="mt-1 inline-flex items-center gap-1 text-sm font-bold text-gold-dark hover:underline">
                 Ver comprobante
+                <ExternalLinkIcon className="h-3.5 w-3.5" />
               </a>
             )}
           </div>
         )}
 
-        {error && <p className="mt-4 text-sm text-clay">{error}</p>}
+        {canTrackStay && (
+          <div className="mt-4 rounded-xl border border-line px-4 py-3">
+            <div className="mb-1 text-xs font-bold uppercase tracking-wide text-muted">Estadía real</div>
+            <Row label="Check-in real" value={record.actualCheckinAt ? new Date(record.actualCheckinAt).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' }) : undefined} />
+            <Row label="Check-out real" value={record.actualCheckoutAt ? new Date(record.actualCheckoutAt).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' }) : undefined} />
+            {!record.actualCheckinAt && (
+              <Button className="mt-2" disabled={!!busy} onClick={() => runCheck('check-in')}>
+                {busy === 'check-in' ? '...' : 'Registrar check-in'}
+              </Button>
+            )}
+            {record.actualCheckinAt && !record.actualCheckoutAt && (
+              <Button className="mt-2" disabled={!!busy} onClick={() => runCheck('check-out')}>
+                {busy === 'check-out' ? '...' : 'Registrar check-out'}
+              </Button>
+            )}
+            {record.actualCheckinAt && record.actualCheckoutAt && (
+              <p className="mt-1 text-xs text-muted">Estadía completa — el check-out ya programó el aseo de salida.</p>
+            )}
+          </div>
+        )}
+
+        {error && <p className="mt-4 rounded-xl bg-red/10 px-3.5 py-2.5 text-sm text-red-dark">{error}</p>}
 
         <div className="mt-6 flex flex-wrap gap-2">
           {ACTIONS.filter((a) => a.when(record)).map((a) => (

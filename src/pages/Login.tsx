@@ -1,6 +1,8 @@
 import { useState, type FormEvent } from 'react';
 import { useAuth } from '../AuthContext';
-import { Button } from '../components/ui';
+import { Button, Field } from '../components/ui';
+import { AlertIcon } from '../components/icons';
+import logoFull from '../assets/brand/logo-full.webp';
 
 const ERROR_MESSAGES: Record<string, string> = {
   'auth/invalid-credential': 'Correo o contraseña incorrectos.',
@@ -30,38 +32,46 @@ export function Login() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-paper px-4">
-      <form onSubmit={onSubmit} className="w-full max-w-sm rounded-2xl border border-line bg-card p-8 shadow-sm">
-        <div className="mb-6 text-center">
-          <div className="font-display text-xl font-semibold text-ink">
-            USO <em className="text-clay not-italic">Inmobiliario</em>
-          </div>
-          <p className="mt-1 text-xs uppercase tracking-wide text-ink/50">Panel administrativo</p>
+    <div className="grid min-h-screen lg:grid-cols-2">
+      <div className="flex items-center justify-center bg-graphite-900 px-6 py-12 lg:py-0">
+        <div className="max-w-xs text-center">
+          <img src={logoFull} alt="Uso Inmobiliario" className="mx-auto w-44 sm:w-52" />
+          <p className="mt-6 text-sm leading-relaxed text-graphite-400">
+            Panel administrativo interno — reservas, pagos, visitas y apartamentos en un solo lugar.
+          </p>
         </div>
+      </div>
 
-        <label className="mb-3 block text-sm">
-          <span className="mb-1 block font-bold text-ink/80">Correo</span>
-          <input
-            type="email" required autoComplete="username" value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-lg border border-line bg-paper px-3 py-2 outline-none focus:border-clay"
-          />
-        </label>
-        <label className="mb-5 block text-sm">
-          <span className="mb-1 block font-bold text-ink/80">Contraseña</span>
-          <input
-            type="password" required autoComplete="current-password" value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-lg border border-line bg-paper px-3 py-2 outline-none focus:border-clay"
-          />
-        </label>
+      <div className="flex items-center justify-center px-4 py-12 sm:py-16">
+        <form onSubmit={onSubmit} className="w-full max-w-sm">
+          <div className="mb-7">
+            <h1 className="font-display text-xl font-semibold text-ink">Iniciar sesión</h1>
+            <p className="mt-1 text-sm text-muted">Ingresa con tu cuenta de administrador.</p>
+          </div>
 
-        {error && <p className="mb-4 text-sm text-clay">{error}</p>}
+          <div className="space-y-4">
+            <Field
+              label="Correo" type="email" required autoComplete="username" value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+            <Field
+              label="Contraseña" type="password" required autoComplete="current-password" value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </div>
 
-        <Button type="submit" disabled={submitting} className="w-full justify-center">
-          {submitting ? 'Ingresando...' : 'Ingresar'}
-        </Button>
-      </form>
+          {error && (
+            <div className="mt-4 flex items-start gap-2 rounded-xl border border-red/20 bg-red/5 px-3.5 py-2.5 text-sm text-red-dark">
+              <AlertIcon className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          <Button type="submit" disabled={submitting} className="mt-6 w-full justify-center">
+            {submitting ? 'Ingresando...' : 'Ingresar'}
+          </Button>
+        </form>
+      </div>
     </div>
   );
 }

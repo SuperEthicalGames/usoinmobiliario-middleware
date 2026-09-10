@@ -9,4 +9,7 @@ import { defineConfig } from 'vite'
 export default defineConfig({
   base: '/usoinmobiliario-middleware/',
   plugins: [react(), tailwindcss()],
+  server: {
+    port: Number(process.env.PORT) || 5173,
+  },
 })

@@ -3,9 +3,18 @@ import { updatePassword } from 'firebase/auth';
 import { api, ApiError, describeApiError } from '../api';
 import type { PaymentInfo } from '../types';
 import { useAuth } from '../AuthContext';
-import { AsyncSection, Button, Card, PageHeader } from '../components/ui';
+import { AsyncSection, Button, Card, Field, PageHeader } from '../components/ui';
 
 const EMPTY_INFO: PaymentInfo = { bankName: '', accountHolder: '', accountType: '', accountNumber: '' };
+
+function InfoRow({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="flex justify-between gap-4 border-b border-line py-2 text-sm last:border-0">
+      <span className="text-muted">{label}</span>
+      <span className="font-bold text-ink">{value}</span>
+    </div>
+  );
+}
 
 function PaymentInfoCard() {
   const { isSuperAdmin } = useAuth();
@@ -46,41 +55,27 @@ function PaymentInfoCard() {
 
   return (
     <Card className="p-6">
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-1 flex items-center justify-between">
         <h2 className="font-display text-lg font-semibold text-ink">Datos bancarios</h2>
         {isSuperAdmin && !editing && (
           <Button variant="ghost" onClick={() => { setForm(data ?? EMPTY_INFO); setEditing(true); }}>Editar</Button>
         )}
       </div>
-      <p className="mb-4 text-xs text-ink/40">
+      <p className="mb-4 text-xs text-muted">
         Es la cuenta que se le muestra a los clientes cuando eligen pagar por transferencia (en el sitio y en el bot de WhatsApp) — un dato equivocado acá afecta pagos reales.
       </p>
 
       {editing ? (
         <form onSubmit={onSave} className="space-y-3">
-          <label className="block text-sm">
-            <span className="mb-1 block font-bold text-ink/80">Banco</span>
-            <input required value={form.bankName} onChange={(e) => setForm({ ...form, bankName: e.target.value })}
-              className="w-full rounded-lg border border-line bg-paper px-3 py-2 outline-none focus:border-clay" />
-          </label>
-          <label className="block text-sm">
-            <span className="mb-1 block font-bold text-ink/80">Titular</span>
-            <input required value={form.accountHolder} onChange={(e) => setForm({ ...form, accountHolder: e.target.value })}
-              className="w-full rounded-lg border border-line bg-paper px-3 py-2 outline-none focus:border-clay" />
-          </label>
-          <label className="block text-sm">
-            <span className="mb-1 block font-bold text-ink/80">Tipo de cuenta</span>
-            <input required value={form.accountType} onChange={(e) => setForm({ ...form, accountType: e.target.value })}
-              placeholder="Ahorros / Corriente"
-              className="w-full rounded-lg border border-line bg-paper px-3 py-2 outline-none focus:border-clay" />
-          </label>
-          <label className="block text-sm">
-            <span className="mb-1 block font-bold text-ink/80">Número de cuenta</span>
-            <input required value={String(form.accountNumber)} onChange={(e) => setForm({ ...form, accountNumber: e.target.value })}
-              className="w-full rounded-lg border border-line bg-paper px-3 py-2 outline-none focus:border-clay" />
-          </label>
-          {saveError && <p className="text-sm text-clay">{saveError}</p>}
-          <div className="flex gap-2">
+          <Field label="Banco" required value={form.bankName} onChange={(e) => setForm({ ...form, bankName: e.target.value })} />
+          <Field label="Titular" required value={form.accountHolder} onChange={(e) => setForm({ ...form, accountHolder: e.target.value })} />
+          <Field
+            label="Tipo de cuenta" required value={form.accountType} onChange={(e) => setForm({ ...form, accountType: e.target.value })}
+            placeholder="Ahorros / Corriente"
+          />
+          <Field label="Número de cuenta" required value={String(form.accountNumber)} onChange={(e) => setForm({ ...form, accountNumber: e.target.value })} />
+          {saveError && <p className="text-sm text-red-dark">{saveError}</p>}
+          <div className="flex gap-2 pt-1">
             <Button type="submit" disabled={saving}>{saving ? 'Guardando...' : 'Guardar cambios'}</Button>
             <Button type="button" variant="ghost" disabled={saving} onClick={() => setEditing(false)}>Cancelar</Button>
           </div>
@@ -88,17 +83,17 @@ function PaymentInfoCard() {
       ) : (
         <AsyncSection loading={loading} error={error} data={data} empty="No hay datos bancarios configurados todavía." onRetry={load}>
           {(info) => (
-            <div className="space-y-1.5 text-sm">
-              <div><span className="text-ink/50">Banco:</span> <span className="font-bold">{info.bankName}</span></div>
-              <div><span className="text-ink/50">Titular:</span> <span className="font-bold">{info.accountHolder}</span></div>
-              <div><span className="text-ink/50">Tipo de cuenta:</span> <span className="font-bold">{info.accountType}</span></div>
-              <div><span className="text-ink/50">Número de cuenta:</span> <span className="font-bold">{info.accountNumber}</span></div>
+            <div>
+              <InfoRow label="Banco" value={info.bankName} />
+              <InfoRow label="Titular" value={info.accountHolder} />
+              <InfoRow label="Tipo de cuenta" value={info.accountType} />
+              <InfoRow label="Número de cuenta" value={info.accountNumber} />
             </div>
           )}
         </AsyncSection>
       )}
       {!isSuperAdmin && (
-        <p className="mt-4 text-xs text-ink/40">Solo lectura — pídele al administrador principal que lo edite si hace falta.</p>
+        <p className="mt-4 text-xs text-muted">Solo lectura — pídele al administrador principal que lo edite si hace falta.</p>
       )}
     </Card>
   );
@@ -143,19 +138,11 @@ function ChangePasswordCard() {
   return (
     <Card className="p-6">
       <h2 className="mb-1 font-display text-lg font-semibold text-ink">Cuenta</h2>
-      <p className="mb-4 text-sm text-ink/50">{user?.email}</p>
+      <p className="mb-4 text-sm text-muted">{user?.email}</p>
       <form onSubmit={onSubmit} className="max-w-xs space-y-3">
-        <label className="block text-sm">
-          <span className="mb-1 block font-bold text-ink/80">Nueva contraseña</span>
-          <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)}
-            className="w-full rounded-lg border border-line bg-paper px-3 py-2 outline-none focus:border-clay" />
-        </label>
-        <label className="block text-sm">
-          <span className="mb-1 block font-bold text-ink/80">Confirmar</span>
-          <input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)}
-            className="w-full rounded-lg border border-line bg-paper px-3 py-2 outline-none focus:border-clay" />
-        </label>
-        {message && <p className={`text-sm ${message.tone === 'ok' ? 'text-forest' : 'text-clay'}`}>{message.text}</p>}
+        <Field label="Nueva contraseña" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
+        <Field label="Confirmar" type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+        {message && <p className={`text-sm ${message.tone === 'ok' ? 'text-emerald-dark' : 'text-red-dark'}`}>{message.text}</p>}
         <Button type="submit" variant="ghost" disabled={submitting}>{submitting ? 'Guardando...' : 'Cambiar contraseña'}</Button>
       </form>
     </Card>

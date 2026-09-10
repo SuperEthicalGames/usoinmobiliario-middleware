@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, ApiError, describeApiError } from '../api';
 import type { Apartment, Categories, ReservationRecord } from '../types';
-import { AsyncSection, Button, Card, PageHeader, fmtCOP } from '../components/ui';
+import { AsyncSection, Button, Card, Field, PageHeader, Select, TextArea, fmtCOP } from '../components/ui';
 
 const ERROR_MESSAGES: Record<string, string> = {
   'dates-taken': 'Esas fechas ya no están disponibles para esta unidad.',
@@ -85,14 +85,14 @@ export function ManualReservation() {
     return (
       <div>
         <PageHeader title="Reserva creada" />
-        <Card className="max-w-md p-6 text-center">
-          <div className="text-xs uppercase tracking-wide text-ink/50">Código</div>
-          <div className="font-display text-4xl font-bold tracking-widest text-forest">{created.code}</div>
+        <Card className="max-w-md p-8 text-center">
+          <div className="text-xs font-bold uppercase tracking-wide text-muted">Código</div>
+          <div className="font-display text-4xl font-bold tracking-widest text-emerald-dark">{created.code}</div>
           <p className="mt-4 text-sm text-ink/70">
             Nace en estado <b>pendiente</b> con un HOLD de 15 minutos, igual que cualquier reserva del sitio o del bot —
             confírmala desde Reservas cuando corresponda.
           </p>
-          <div className="mt-6 flex justify-center gap-3">
+          <div className="mt-6 flex flex-wrap justify-center gap-3">
             <Button variant="ghost" onClick={() => navigate('/reservas')}>Ver reservas</Button>
             <Button onClick={() => { setCreated(null); setName(''); setPhone(''); setEmail(''); setNotes(''); }}>Crear otra</Button>
           </div>
@@ -108,71 +108,39 @@ export function ManualReservation() {
         {() => (
       <form onSubmit={onSubmit} className="max-w-xl space-y-4">
         <Card className="space-y-4 p-6">
-          <label className="block text-sm">
-            <span className="mb-1 block font-bold text-ink/80">Apartamento</span>
-            <select
-              required value={selectedKey} onChange={(e) => setSelectedKey(e.target.value)}
-              className="w-full rounded-lg border border-line bg-paper px-3 py-2 outline-none focus:border-clay"
-            >
-              <option value="">Selecciona un apartamento disponible...</option>
-              {apartments?.map((a) => (
-                <option key={a._key} value={a._key}>Apartamento H{a.num} — {categoryLabel(a.typeKey)} ({a.maxPersons} huésp. máx.)</option>
-              ))}
-            </select>
-          </label>
+          <Select label="Apartamento" required value={selectedKey} onChange={(e) => setSelectedKey(e.target.value)}>
+            <option value="">Selecciona un apartamento disponible...</option>
+            {apartments?.map((a) => (
+              <option key={a._key} value={a._key}>Apartamento H{a.num} — {categoryLabel(a.typeKey)} ({a.maxPersons} huésp. máx.)</option>
+            ))}
+          </Select>
 
-          <div className="grid grid-cols-2 gap-4">
-            <label className="block text-sm">
-              <span className="mb-1 block font-bold text-ink/80">Check-in</span>
-              <input type="date" required value={checkin} onChange={(e) => setCheckin(e.target.value)}
-                className="w-full rounded-lg border border-line bg-paper px-3 py-2 outline-none focus:border-clay" />
-            </label>
-            <label className="block text-sm">
-              <span className="mb-1 block font-bold text-ink/80">Check-out</span>
-              <input type="date" required value={checkout} onChange={(e) => setCheckout(e.target.value)}
-                className="w-full rounded-lg border border-line bg-paper px-3 py-2 outline-none focus:border-clay" />
-            </label>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field label="Check-in" type="date" required value={checkin} onChange={(e) => setCheckin(e.target.value)} />
+            <Field label="Check-out" type="date" required value={checkout} onChange={(e) => setCheckout(e.target.value)} />
           </div>
 
-          <label className="block text-sm">
-            <span className="mb-1 block font-bold text-ink/80">Huéspedes</span>
-            <input type="number" min={1} max={selected?.maxPersons ?? 10} required value={guests}
-              onChange={(e) => setGuests(Number(e.target.value))}
-              className="w-32 rounded-lg border border-line bg-paper px-3 py-2 outline-none focus:border-clay" />
-          </label>
+          <Field
+            label="Huéspedes" type="number" min={1} max={selected?.maxPersons ?? 10} required value={guests}
+            onChange={(e) => setGuests(Number(e.target.value))} className="max-w-[8rem]"
+          />
 
           {selected?.rates?.month != null && (
-            <p className="text-xs text-ink/50">Tarifa mensual de referencia: {fmtCOP(selected.rates.month)}. El total real se calcula al crear la reserva.</p>
+            <p className="text-xs text-muted">Tarifa mensual de referencia: {fmtCOP(selected.rates.month)}. El total real se calcula al crear la reserva.</p>
           )}
         </Card>
 
         <Card className="space-y-4 p-6">
-          <label className="block text-sm">
-            <span className="mb-1 block font-bold text-ink/80">Nombre</span>
-            <input required value={name} onChange={(e) => setName(e.target.value)}
-              className="w-full rounded-lg border border-line bg-paper px-3 py-2 outline-none focus:border-clay" />
-          </label>
-          <div className="grid grid-cols-2 gap-4">
-            <label className="block text-sm">
-              <span className="mb-1 block font-bold text-ink/80">Teléfono</span>
-              <input required value={phone} onChange={(e) => setPhone(e.target.value)}
-                className="w-full rounded-lg border border-line bg-paper px-3 py-2 outline-none focus:border-clay" />
-            </label>
-            <label className="block text-sm">
-              <span className="mb-1 block font-bold text-ink/80">Correo</span>
-              <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-lg border border-line bg-paper px-3 py-2 outline-none focus:border-clay" />
-            </label>
+          <Field label="Nombre" required value={name} onChange={(e) => setName(e.target.value)} />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field label="Teléfono" required value={phone} onChange={(e) => setPhone(e.target.value)} />
+            <Field label="Correo" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
           </div>
-          <label className="block text-sm">
-            <span className="mb-1 block font-bold text-ink/80">Notas (opcional)</span>
-            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2}
-              className="w-full rounded-lg border border-line bg-paper px-3 py-2 outline-none focus:border-clay" />
-          </label>
+          <TextArea label="Notas (opcional)" value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
         </Card>
 
         {error && (
-          <p className="text-sm text-clay">
+          <p className="rounded-xl bg-red/10 px-3.5 py-2.5 text-sm text-red-dark">
             {error}{missingFields.length > 0 && ` (${missingFields.join(', ')})`}
           </p>
         )}

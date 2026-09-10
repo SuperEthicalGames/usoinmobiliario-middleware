@@ -50,7 +50,7 @@ export function Visits() {
             key={f.key}
             onClick={() => setFilter(f.key)}
             className={`rounded-full px-3.5 py-1.5 text-xs font-bold uppercase tracking-wide transition ${
-              filter === f.key ? 'bg-forest text-paper' : 'border border-line text-ink/60 hover:border-clay'
+              filter === f.key ? 'bg-graphite-900 text-white' : 'border border-line text-muted hover:border-gold/60 hover:text-gold-dark'
             }`}
           >
             {f.label}
@@ -60,34 +60,53 @@ export function Visits() {
 
       <AsyncSection loading={loading} error={error} data={filtered} empty="No hay visitas con este filtro." onRetry={load}>
         {(visits) => (
-          <Card className="overflow-x-auto">
-            <p className="border-b border-line px-4 py-2 text-xs text-ink/40">Clic en una fila para ver el detalle y confirmar, rechazar, cancelar o completar.</p>
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-line text-left text-xs uppercase tracking-wide text-ink/50">
-                  <th className="px-4 py-3">Código</th>
-                  <th className="px-4 py-3">Unidad</th>
-                  <th className="px-4 py-3" title="Específica: a un apartamento en particular. General: quiere conocer varias opciones.">Tipo de visita</th>
-                  <th className="px-4 py-3">Cliente</th>
-                  <th className="px-4 py-3">Fecha</th>
-                  <th className="px-4 py-3">Hora</th>
-                  <th className="px-4 py-3">Estado</th>
-                </tr>
-              </thead>
-              <tbody>
-                {visits.map((v) => (
-                  <tr key={v.code} onClick={() => setSelected(v)} className="cursor-pointer border-b border-line last:border-0 hover:bg-sand/60">
-                    <td className="px-4 py-3 font-bold">{v.code}</td>
-                    <td className="px-4 py-3">{v.unitLabel}</td>
-                    <td className="px-4 py-3 text-ink/70">{v.appointmentType === 'general_visit' ? 'General' : 'Específica'}</td>
-                    <td className="px-4 py-3">{v.name}</td>
-                    <td className="px-4 py-3">{fmtDate(v.visitDate)}</td>
-                    <td className="px-4 py-3">{v.visitTime}</td>
-                    <td className="px-4 py-3"><StatusBadge status={v.status} /></td>
+          <Card className="overflow-hidden">
+            <p className="border-b border-line px-4 py-2 text-xs text-muted">Toca una fila para ver el detalle y confirmar, rechazar, cancelar o completar.</p>
+
+            <div className="hidden overflow-x-auto md:block">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-line text-left text-xs uppercase tracking-wide text-muted">
+                    <th className="px-4 py-3">Código</th>
+                    <th className="px-4 py-3">Unidad</th>
+                    <th className="px-4 py-3" title="Específica: a un apartamento en particular. General: quiere conocer varias opciones.">Tipo de visita</th>
+                    <th className="px-4 py-3">Cliente</th>
+                    <th className="px-4 py-3">Fecha</th>
+                    <th className="px-4 py-3">Hora</th>
+                    <th className="px-4 py-3">Estado</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {visits.map((v) => (
+                    <tr key={v.code} onClick={() => setSelected(v)} className="cursor-pointer border-b border-line last:border-0 hover:bg-paper-2">
+                      <td className="px-4 py-3 font-bold text-ink">{v.code}</td>
+                      <td className="px-4 py-3">{v.unitLabel}</td>
+                      <td className="px-4 py-3 text-ink/70">{v.appointmentType === 'general_visit' ? 'General' : 'Específica'}</td>
+                      <td className="px-4 py-3">{v.name}</td>
+                      <td className="px-4 py-3">{fmtDate(v.visitDate)}</td>
+                      <td className="px-4 py-3">{v.visitTime}</td>
+                      <td className="px-4 py-3"><StatusBadge status={v.status} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="divide-y divide-line md:hidden">
+              {visits.map((v) => (
+                <button key={v.code} onClick={() => setSelected(v)} className="flex w-full flex-col gap-2 px-4 py-4 text-left transition hover:bg-paper-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-bold text-ink">{v.code}</span>
+                    <StatusBadge status={v.status} />
+                  </div>
+                  <div className="text-sm text-ink/80">{v.unitLabel} · {v.name}</div>
+                  <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-muted">
+                    <span>{v.appointmentType === 'general_visit' ? 'General' : 'Específica'}</span>
+                    <span className="font-bold text-ink/70">{fmtDate(v.visitDate)} · {v.visitTime}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
           </Card>
         )}
       </AsyncSection>

@@ -91,6 +91,67 @@ export interface ReservationRecord {
   visitDate?: string;
   visitTime?: string;
   appointmentType?: AppointmentType;
+  // Marca de hora REAL de llegada/salida — distinto de checkin/checkout (esos son las fechas
+  // planeadas). Solo aplica a reservas confirmadas; null/undefined hasta que se registre.
+  actualCheckinAt?: string | null;
+  actualCheckoutAt?: string | null;
+}
+
+export type ContractStatus = 'activo' | 'finalizado' | 'cancelado';
+export interface Contract {
+  code: string;
+  unitType: string;
+  unitNum: string;
+  unitLabel: string;
+  tenantName: string;
+  tenantPhone?: string;
+  tenantEmail?: string;
+  startDate: string;
+  endDate: string;
+  monthlyRent: number;
+  depositAmount?: number;
+  documentUrl?: string;
+  notes?: string;
+  status: ContractStatus;
+  createdAt: string;
+  createdBy?: string;
+}
+
+export type CleaningStatus = 'pendiente' | 'en-progreso' | 'completado';
+export interface CleaningTask {
+  code: string;
+  unitType: string;
+  unitNum: string;
+  unitLabel: string;
+  scheduledDate: string;
+  assignedTo?: string;
+  relatedReservationCode?: string;
+  notes?: string;
+  status: CleaningStatus;
+  createdAt: string;
+  completedAt?: string | null;
+}
+
+export type MaintenancePriority = 'baja' | 'media' | 'alta';
+export type MaintenanceStatus = 'abierto' | 'en-progreso' | 'resuelto';
+export interface MaintenanceTicket {
+  code: string;
+  unitType: string;
+  unitNum: string;
+  unitLabel: string;
+  title: string;
+  description?: string;
+  priority: MaintenancePriority;
+  status: MaintenanceStatus;
+  reportedBy?: string;
+  createdAt: string;
+  resolvedAt?: string | null;
+}
+
+export interface SiteTrafficDay {
+  day: string;
+  total: number;
+  paths: Record<string, number>;
 }
 
 export interface DashboardSummary {

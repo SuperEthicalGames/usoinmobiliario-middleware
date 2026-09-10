@@ -60,7 +60,13 @@ src/
   api.ts             Cliente tipado de /admin/api/* — agrega el token en cada llamada
   types.ts            Espejo a mano de las formas del backend (sin paquete npm compartido)
   AuthContext.tsx       Sesión (login/logout/usuario actual)
-  components/            UI compartida (Layout, StatusBadge, RecordDetail, primitivos)
-  pages/                   Las 7 pantallas (Dashboard, Apartamentos, Reservas, Reserva Manual,
-                           Pagos, Visitas, Configuración)
+  lib/analytics.ts        Agregaciones puras (ingresos/ocupación/desgloses) para Analíticas
+  components/            UI compartida (Layout, StatusBadge, RecordDetail, charts, primitivos)
+  pages/                   Dashboard, Analíticas, Apartamentos, Reservas, Reserva Manual, Pagos,
+                           Visitas, Contratos, Aseo, Mantenimiento, Configuración, Administradores
 ```
+
+Check-in/check-out real, Contratos, Aseo y Mantenimiento dependen de rutas nuevas en
+`whatsapp-assistant/src/adminRoutes.js` (y de `/track/pageview`, público, para el tráfico del
+sitio en Analíticas) — si el panel muestra 404 en esas pantallas, el backend desplegado todavía
+no tiene esas rutas.

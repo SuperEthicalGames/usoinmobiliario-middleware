@@ -3,6 +3,7 @@ import { api, describeApiError } from '../api';
 import type { DashboardSummary } from '../types';
 import { AsyncSection, Card, PageHeader, Button, fmtDate } from '../components/ui';
 import { StatusBadge } from '../components/StatusBadge';
+import { RefreshIcon } from '../components/icons';
 
 // Cada tarjeta explica en una línea qué significa el número — la queja de que "el dashboard no
 // se actualiza bien" muchas veces es en realidad "no sé si este número está fresco o qué
@@ -10,11 +11,15 @@ import { StatusBadge } from '../components/StatusBadge';
 function StatCard({ label, value, tone = 'text-ink', hint }: { label: string; value: number; tone?: string; hint: string }) {
   return (
     <Card className="p-5">
-      <div className="text-xs font-bold uppercase tracking-wide text-ink/50">{label}</div>
-      <div className={`mt-1 font-display text-3xl font-semibold ${tone}`}>{value}</div>
-      <div className="mt-1 text-xs text-ink/40">{hint}</div>
+      <div className="text-xs font-bold uppercase tracking-wide text-muted">{label}</div>
+      <div className={`mt-1.5 font-display text-3xl font-semibold ${tone}`}>{value}</div>
+      <div className="mt-1.5 text-xs text-muted/80">{hint}</div>
     </Card>
   );
+}
+
+function SectionLabel({ children }: { children: string }) {
+  return <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-muted">{children}</h2>;
 }
 
 const AUTO_REFRESH_MS = 30000;
@@ -68,9 +73,12 @@ export function Dashboard() {
         title="Dashboard"
         subtitle="Resumen en tiempo real del negocio — se actualiza solo cada 30 segundos."
         action={
-          <div className="flex items-center gap-3">
-            {lastUpdated && <span className="text-xs text-ink/40">Actualizado hace {secondsAgo}s</span>}
-            <Button variant="ghost" onClick={() => load(true)} disabled={loading}>{loading ? 'Actualizando...' : 'Actualizar ahora'}</Button>
+          <div className="flex flex-wrap items-center gap-3">
+            {lastUpdated && <span className="text-xs text-muted">Actualizado hace {secondsAgo}s</span>}
+            <Button variant="ghost" onClick={() => load(true)} disabled={loading}>
+              <RefreshIcon className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              {loading ? 'Actualizando...' : 'Actualizar ahora'}
+            </Button>
           </div>
         }
       />
@@ -78,44 +86,44 @@ export function Dashboard() {
         {(summary) => (
           <div className="space-y-8">
             {error && (
-              <p className="rounded-lg bg-clay/10 px-4 py-2 text-sm text-clay">
+              <p className="rounded-xl bg-red/10 px-4 py-2.5 text-sm text-red-dark">
                 No se pudo actualizar ({error}) — mostrando los últimos datos que sí cargaron.
               </p>
             )}
             <div>
-              <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-ink/50">Apartamentos</h2>
+              <SectionLabel>Apartamentos</SectionLabel>
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-                <StatCard label="Disponibles" value={summary.availableCount} tone="text-forest" hint="Libres para reservar ahora mismo" />
-                <StatCard label="En uso" value={summary.inUseCount} tone="text-ochre" hint="Con una reserva confirmada activa hoy" />
-                <StatCard label="Reservados" value={summary.reservedCount} tone="text-clay" hint="Con una reserva confirmada a futuro" />
+                <StatCard label="Disponibles" value={summary.availableCount} tone="text-emerald" hint="Libres para reservar ahora mismo" />
+                <StatCard label="En uso" value={summary.inUseCount} tone="text-amber" hint="Con una reserva confirmada activa hoy" />
+                <StatCard label="Reservados" value={summary.reservedCount} tone="text-gold-dark" hint="Con una reserva confirmada a futuro" />
               </div>
             </div>
             <div>
-              <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-ink/50">Reservas</h2>
+              <SectionLabel>Reservas</SectionLabel>
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                 <StatCard label="Pendientes" value={summary.pendingReservations} hint="Esperando confirmación (incluye HOLDs activos y vencidos)" />
-                <StatCard label="Confirmadas" value={summary.confirmedReservations} tone="text-forest" hint="Ya aprobadas por un administrador" />
-                <StatCard label="HOLD activos" value={summary.activeHolds} tone="text-ochre" hint="Pendientes con los 15 minutos de reserva temporal aún corriendo" />
-                <StatCard label="Pagos por verificar" value={summary.pendingPaymentVerifications} tone="text-clay" hint="El cliente ya reportó una transferencia — ver Pagos" />
+                <StatCard label="Confirmadas" value={summary.confirmedReservations} tone="text-emerald" hint="Ya aprobadas por un administrador" />
+                <StatCard label="HOLD activos" value={summary.activeHolds} tone="text-amber" hint="Pendientes con los 15 minutos de reserva temporal aún corriendo" />
+                <StatCard label="Pagos por verificar" value={summary.pendingPaymentVerifications} tone="text-gold-dark" hint="El cliente ya reportó una transferencia — ver Pagos" />
               </div>
             </div>
             <div>
-              <h2 className="mb-1 text-sm font-bold uppercase tracking-wide text-ink/50">Próximas visitas</h2>
-              <p className="mb-3 text-xs text-ink/40">Confirmadas y pendientes de confirmar, de hoy en adelante — rechazadas/canceladas/completadas no aparecen acá.</p>
+              <SectionLabel>Próximas visitas</SectionLabel>
+              <p className="-mt-2 mb-3 text-xs text-muted/80">Confirmadas y pendientes de confirmar, de hoy en adelante — rechazadas/canceladas/completadas no aparecen acá.</p>
               <Card className="divide-y divide-line">
-                {summary.upcomingVisits.length === 0 && <p className="p-5 text-sm text-ink/50">No hay visitas próximas.</p>}
+                {summary.upcomingVisits.length === 0 && <p className="p-5 text-sm text-muted">No hay visitas próximas.</p>}
                 {summary.upcomingVisits.map((v) => (
-                  <div key={v.code} className="flex items-center justify-between gap-4 px-5 py-3">
+                  <div key={v.code} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-5 py-3.5">
                     <div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <span className="font-bold text-ink">{v.unitLabel}</span>
                         <StatusBadge status={v.status} />
                       </div>
-                      <div className="text-xs text-ink/50">{v.name} · {v.code}</div>
+                      <div className="text-xs text-muted">{v.name} · {v.code}</div>
                     </div>
                     <div className="text-right text-sm text-ink/70">
                       <div>{fmtDate(v.visitDate)}</div>
-                      <div className="text-xs text-ink/50">{v.visitTime}</div>
+                      <div className="text-xs text-muted">{v.visitTime}</div>
                     </div>
                   </div>
                 ))}

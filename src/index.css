@@ -1,21 +1,48 @@
 @import "tailwindcss";
 
-/* Misma paleta que el sitio público (D:\Portfolio\UsoInmobiliario\index.html) — consistencia
-   de marca entre el catálogo público y este panel interno, no una coincidencia. */
+/* Paleta inspirada en el logo real de Uso Inmobiliario (media/) — cromo/plata, oro cepillado,
+   grafito oscuro y el verde del sello ® — un lenguaje visual "profesional / metálico" acorde
+   a la marca, en vez de la paleta cálida de editorial que tenía este panel antes. */
 @theme {
-  --color-ink: #20241f;
-  --color-paper: #f5f0e6;
-  --color-paper-2: #efe7d8;
-  --color-card: #faf6ec;
-  --color-forest: #33513f;
-  --color-forest-dk: #22362a;
-  --color-clay: #b6603c;
-  --color-sand: #e4d8c3;
-  --color-ochre: #9c7b3f;
-  --color-line: #20241f24;
+  --color-ink: #1a1d21;
+  --color-paper: #f5f6f8;
+  --color-paper-2: #eceef2;
+  --color-card: #ffffff;
+  /* Antes #e2e5eb — casi invisible sobre tarjetas blancas (bug real reportado: "los márgenes
+     no se ven"). Este tono sí se distingue del blanco sin dejar de leerse como un hairline
+     discreto, no un recuadro pesado. */
+  --color-line: #cfd4dc;
+  --color-muted: #667085;
+
+  /* Grafito — mismo gris frío del badge oscuro del logo, para la barra lateral y superficies
+     oscuras (nunca negro puro ni azulado). */
+  --color-graphite-950: #111317;
+  --color-graphite-900: #1a1d22;
+  --color-graphite-800: #22262c;
+  --color-graphite-700: #2e333a;
+  --color-graphite-600: #454b54;
+  --color-graphite-400: #8b929c;
+
+  /* Oro cepillado — SOLO acento de marca (nav activo, botón primario, foco, enlaces).
+     Nunca se usa para semántica de estado (eso vive en emerald/amber/red más abajo). */
+  --color-gold: #c8962f;
+  --color-gold-light: #e6c165;
+  --color-gold-dark: #8f6a1e;
+
+  /* Verde del sello ® del logo — éxito / confirmado / disponible. */
+  --color-emerald: #1e8a44;
+  --color-emerald-dark: #14652f;
+
+  /* Ámbar — pendiente / en espera / por verificar (deliberadamente distinto del oro de marca). */
+  --color-amber: #b8720e;
+  --color-amber-dark: #8a560a;
+
+  /* Rojo — rechazado / peligro. */
+  --color-red: #c13a3a;
+  --color-red-dark: #942c2c;
 
   --font-display: 'Fraunces', ui-serif, Georgia, serif;
-  --font-sans: 'Karla', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
 }
 
 body {
@@ -23,4 +50,46 @@ body {
   background: var(--color-paper);
   color: var(--color-ink);
   font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--color-gold) 35%, transparent);
+}
+
+/* Scrollbar fino y discreto — mismo tratamiento en superficies claras y oscuras (sidebar). */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-graphite-600) transparent;
+}
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-graphite-600);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-graphite-700);
+}
+
+/* Entrada de tarjetas — un solo fundido + ligero ascenso al montar, nunca al hacer scroll de
+   nuevo (por eso "animation", que corre una vez, no "transition" atado a un estado). Respeta
+   prefers-reduced-motion: quien lo pida no ve ningún movimiento, solo aparece. */
+@keyframes card-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-card-in {
+  animation: card-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-card-in { animation: none; }
 }

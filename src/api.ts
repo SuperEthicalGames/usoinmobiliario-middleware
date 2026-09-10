@@ -2,7 +2,8 @@ import { auth } from './firebase';
 import { API_BASE_URL } from './config';
 import type {
   Apartment, ReservationRecord, DashboardSummary, PaymentInfo, RecordAction, ManualReservationInput, ApiErrorBody,
-  Categories, MeInfo, AdminUser,
+  Categories, MeInfo, AdminUser, Contract, ContractStatus, CleaningTask, CleaningStatus, MaintenanceTicket,
+  MaintenanceStatus, SiteTrafficDay,
 } from './types';
 
 export class ApiError extends Error {
@@ -78,6 +79,29 @@ export const api = {
     request<AdminUser>('/admins', { method: 'POST', body: JSON.stringify({ email, password }) }),
   disableAdmin: (uid: string) => request<AdminUser>(`/admins/${uid}/disable`, { method: 'POST' }),
   enableAdmin: (uid: string) => request<AdminUser>(`/admins/${uid}/enable`, { method: 'POST' }),
+
+  checkIn: (code: string) => request<ReservationRecord>(`/records/${code}/check-in`, { method: 'POST' }),
+  checkOut: (code: string) => request<ReservationRecord>(`/records/${code}/check-out`, { method: 'POST' }),
+
+  getContracts: () => request<Contract[]>('/contracts'),
+  createContract: (data: Omit<Contract, 'code' | 'status' | 'createdAt' | 'createdBy'>) =>
+    request<Contract>('/contracts', { method: 'POST', body: JSON.stringify(data) }),
+  setContractStatus: (code: string, status: ContractStatus) =>
+    request<Contract>(`/contracts/${code}/status`, { method: 'POST', body: JSON.stringify({ status }) }),
+
+  getCleaningTasks: () => request<CleaningTask[]>('/cleaning'),
+  createCleaningTask: (data: Omit<CleaningTask, 'code' | 'status' | 'createdAt' | 'completedAt'>) =>
+    request<CleaningTask>('/cleaning', { method: 'POST', body: JSON.stringify(data) }),
+  setCleaningStatus: (code: string, status: CleaningStatus) =>
+    request<CleaningTask>(`/cleaning/${code}/status`, { method: 'POST', body: JSON.stringify({ status }) }),
+
+  getMaintenanceTickets: () => request<MaintenanceTicket[]>('/maintenance'),
+  createMaintenanceTicket: (data: Omit<MaintenanceTicket, 'code' | 'status' | 'createdAt' | 'resolvedAt'>) =>
+    request<MaintenanceTicket>('/maintenance', { method: 'POST', body: JSON.stringify(data) }),
+  setMaintenanceStatus: (code: string, status: MaintenanceStatus) =>
+    request<MaintenanceTicket>(`/maintenance/${code}/status`, { method: 'POST', body: JSON.stringify({ status }) }),
+
+  getSiteTraffic: (days = 30) => request<SiteTrafficDay[]>(`/site-traffic?days=${days}`),
 };
 
 // Mensajes listos para mostrar en la UI ante los errores más comunes — un solo lugar, para no
@@ -89,6 +113,10 @@ export const API_ERROR_MESSAGES: Record<string, string> = {
   'invalid-token': 'Tu sesión venció. Cierra sesión y vuelve a entrar.',
   'not-super-admin': 'Esta acción es solo para el administrador principal.',
   'reservation-not-active': 'Esta reserva ya está rechazada o cancelada — no se puede verificar/rechazar su pago.',
+  'reservation-not-confirmed': 'Solo se puede registrar el check-in de una reserva confirmada.',
+  'already-checked-in': 'Esta reserva ya tiene un check-in registrado.',
+  'not-checked-in-yet': 'Primero hay que registrar el check-in antes del check-out.',
+  'already-checked-out': 'Esta reserva ya tiene un check-out registrado.',
 };
 export function describeApiError(err: unknown): string {
   if (err instanceof ApiError) return API_ERROR_MESSAGES[err.code] ?? `Ocurrió un error (${err.code}).`;
