@@ -38,7 +38,14 @@ function ActionRow({ r, busyCode, onVerify, onReject, onCash }: {
         )}
       </div>
       <div className="flex shrink-0 items-center justify-between gap-3 sm:justify-end">
-        <span className="font-display font-bold text-emerald-dark">{fmtCOP(r.estTotal)}</span>
+        <div className="text-right">
+          <span className="font-display font-bold text-emerald-dark">{fmtCOP(r.estTotal)}</span>
+          {r.priceCheck && !r.priceCheck.matchesReported && (
+            <div className="text-[11px] font-bold text-red-dark" title={`Cálculo real según tarifas vigentes: ${fmtCOP(r.priceCheck.expectedTotal)}`}>
+              ⚠️ no coincide con la tarifa real ({fmtCOP(r.priceCheck.expectedTotal)})
+            </div>
+          )}
+        </div>
         <div className="flex gap-2">
           {onVerify && <Button disabled={busy} onClick={() => onVerify(r)}>{busy ? '...' : 'Verificar'}</Button>}
           {onReject && <Button variant="danger" disabled={busy} onClick={() => onReject(r)}>{busy ? '...' : 'Rechazar'}</Button>}
@@ -153,6 +160,11 @@ export function Payments() {
                     <> Revisa que el banco/referencia coincidan: <b>{confirming.r.paymentReport.bank}</b>, ref. <b>{confirming.r.paymentReport.reference}</b>, fecha {fmtDate(confirming.r.paymentReport.date)}.</>
                   )}
                   {' '}Esta acción no se puede deshacer desde el panel.
+                  {confirming.r.priceCheck && !confirming.r.priceCheck.matchesReported && (
+                    <p className="mt-2 rounded-lg bg-red/10 px-3 py-2 text-red-dark">
+                      ⚠️ El total que el cliente reportó no coincide con el cálculo real según las tarifas vigentes de este apartamento (<b>{fmtCOP(confirming.r.priceCheck.expectedTotal)}</b>). El sitio web calcula ese número en el navegador del cliente — confírmalo contra la tarifa real antes de continuar.
+                    </p>
+                  )}
                 </>
               )}
             </>

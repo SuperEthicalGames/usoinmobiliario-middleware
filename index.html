@@ -7,6 +7,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="robots" content="noindex, nofollow" />
     <meta name="theme-color" content="#1b1e23" />
+    <!-- GitHub Pages sirve estático puro, sin poder fijar headers HTTP reales — CSP y
+         Referrer-Policy van por <meta> porque es lo único que este despliegue puede controlar
+         por su cuenta. X-Frame-Options/HSTS no existen como <meta> (requieren un header real);
+         quedan documentados en DEPLOYMENT.md como pendientes de una capa como Cloudflare
+         delante de GitHub Pages. style-src necesita 'unsafe-inline' por los estilos inline
+         dinámicos de components/charts.tsx (barras del panel de Analytics) — script-src NO lo
+         necesita: el build de Vite no emite scripts inline, todo sale a archivos con hash. -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://usoinmobiliario-whatsapp-bot.onrender.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com; object-src 'none'; base-uri 'self'; form-action 'self'">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
     <title>Panel administrativo — Uso Inmobiliario</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

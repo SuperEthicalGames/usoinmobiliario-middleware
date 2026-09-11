@@ -9,6 +9,18 @@ import { CloseIcon, ExternalLinkIcon } from './icons';
 // mismo criterio que setReservationStatus en el backend, un solo componente para las dos.
 const PAYMENT_METHOD_LABELS: Record<string, string> = { bank_transfer: 'Transferencia bancaria', cash: 'Efectivo' };
 
+// paymentReport.proofUrl lo escribe el cliente (o cualquiera que llame a Firebase directo con
+// el SDK real, saltándose por completo la UI del sitio) — database.rules.json ya exige
+// https:// del lado del servidor para escrituras nuevas, pero un registro viejo (de antes de
+// esa regla) o cualquier ruta que la pase por alto igual podría traer un valor tipo
+// "javascript:...". React no sanea el esquema de un href por su cuenta: si esto se pusiera
+// directo en <a href>, un admin que hiciera clic ejecutaría ese código con la sesión de admin
+// ya autenticada (localStorage/memoria con el token de Firebase Auth incluidos). Nunca
+// renderizar como link clicable sin este chequeo explícito de esquema.
+function isSafeHttpUrl(value: unknown): value is string {
+  return typeof value === 'string' && /^https:\/\//i.test(value.trim());
+}
+
 const ACTIONS: { key: RecordAction; label: string; hint: string; variant: 'primary' | 'ghost' | 'danger'; when: (r: ReservationRecord) => boolean }[] = [
   { key: 'confirm', label: 'Confirmar', hint: 'Aprueba la reserva/cita — el HOLD deja de importar', variant: 'primary', when: (r) => r.status === 'pendiente' },
   { key: 'reject', label: 'Rechazar', hint: 'La rechaza y libera las fechas/horario para otros clientes', variant: 'danger', when: (r) => r.status === 'pendiente' },
@@ -112,6 +124,11 @@ export function RecordDetail({ record, onClose, onUpdated }: {
               <Row label="Noches" value={record.nights} />
               <Row label="Huéspedes" value={record.guests} />
               <Row label="Total estimado" value={fmtCOP(record.estTotal)} />
+              {record.priceCheck && !record.priceCheck.matchesReported && (
+                <div className="my-1.5 rounded-lg bg-red/10 px-3 py-2 text-xs text-red-dark">
+                  ⚠️ El total reportado ({fmtCOP(record.priceCheck.reportedTotal)}) no coincide con el cálculo real según las tarifas vigentes ({fmtCOP(record.priceCheck.expectedTotal)}). El sitio web calcula este monto en el navegador del cliente — verifica el pago contra el monto <strong>calculado</strong>, no contra el reportado, antes de confirmar.
+                </div>
+              )}
               <Row label="Método de pago" value={record.paymentMethod ? (PAYMENT_METHOD_LABELS[record.paymentMethod] ?? record.paymentMethod) : undefined} />
             </>
           ) : (
@@ -131,11 +148,14 @@ export function RecordDetail({ record, onClose, onUpdated }: {
             <Row label="Referencia" value={record.paymentReport.reference} />
             <Row label="Monto" value={fmtCOP(record.paymentReport.amount)} />
             <Row label="Fecha" value={fmtDate(record.paymentReport.date)} />
-            {record.paymentReport.proofUrl && (
+            {isSafeHttpUrl(record.paymentReport.proofUrl) && (
               <a href={record.paymentReport.proofUrl} target="_blank" rel="noopener" className="mt-1 inline-flex items-center gap-1 text-sm font-bold text-gold-dark hover:underline">
                 Ver comprobante
                 <ExternalLinkIcon className="h-3.5 w-3.5" />
               </a>
+            )}
+            {record.paymentReport.proofUrl && !isSafeHttpUrl(record.paymentReport.proofUrl) && (
+              <p className="mt-1 text-xs text-red-dark">Comprobante con formato de enlace inválido — no se muestra por seguridad.</p>
             )}
           </div>
         )}

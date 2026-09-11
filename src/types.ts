@@ -83,6 +83,11 @@ export interface ReservationRecord {
   guests?: number;
   estTotal?: number;
   priceSnapshot?: PriceSnapshot;
+  // Calculado por el backend (ver whatsapp-assistant/src/adminRoutes.js: attachPriceCheck),
+  // nunca escrito por el cliente — el sitio web calcula estTotal en el navegador y lo manda
+  // directo a Firebase, así que esta es la única verificación real contra las tarifas
+  // vigentes. Ausente cuando no aplica (citas, o reservas sin tarifas publicadas).
+  priceCheck?: { expectedTotal: number; reportedTotal: number; matchesReported: boolean };
   expiresAt?: number;
   paymentStatus?: PaymentStatus;
   paymentMethod?: PaymentMethod;
