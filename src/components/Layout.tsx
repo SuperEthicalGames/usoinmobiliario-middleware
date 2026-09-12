@@ -3,7 +3,7 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../AuthContext';
 import logoIcon from '../assets/brand/logo-icon.webp';
 import {
-  BuildingIcon, CalendarIcon, CardIcon, ChartIcon, CloseIcon, DocumentIcon, GearIcon, GridIcon, LogoutIcon,
+  BuildingIcon, CalendarIcon, CardIcon, ChartIcon, CloseIcon, DocumentIcon, GearIcon, GridIcon, HistoryIcon, LogoutIcon,
   MenuIcon, PinIcon, ShieldIcon, SparkleIcon, WrenchIcon, type IconProps,
 } from './icons';
 
@@ -25,10 +25,12 @@ const NAV_ITEMS: { to: string; label: string; end?: boolean; icon: ComponentType
 
 function SidebarContent({ onNavigate }: { onNavigate: () => void }) {
   const { user, isSuperAdmin, logout } = useAuth();
-  // Administradores solo aparece para el super admin — restricción real vive en el backend
-  // (requireSuperAdmin), esto es solo para no mostrarle a un admin normal un link a algo que
-  // de todas formas el servidor le va a rechazar con 403.
-  const navItems: typeof NAV_ITEMS = isSuperAdmin ? [...NAV_ITEMS, { to: '/administradores', label: 'Administradores', icon: ShieldIcon }] : NAV_ITEMS;
+  // Administradores/Bitácora solo aparecen para el super admin — restricción real vive en el
+  // backend (requireSuperAdmin), esto es solo para no mostrarle a un admin normal un link a
+  // algo que de todas formas el servidor le va a rechazar con 403.
+  const navItems: typeof NAV_ITEMS = isSuperAdmin
+    ? [...NAV_ITEMS, { to: '/administradores', label: 'Administradores', icon: ShieldIcon }, { to: '/bitacora', label: 'Bitácora', icon: HistoryIcon }]
+    : NAV_ITEMS;
 
   return (
     <>

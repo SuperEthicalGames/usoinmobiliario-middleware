@@ -218,3 +218,16 @@ export interface AdminUser {
   createdAt: string;
   lastSignInAt: string | null;
 }
+
+// Espejo de fb.logAdminAction/listAuditLog (whatsapp-assistant/src/firebase.js) — una entrada
+// por cada acción administrativa que cambia estado real (confirmar/rechazar/cancelar reservas,
+// verificar pagos, crear/revocar admins, editar datos bancarios, etc.).
+export interface AuditLogEntry {
+  id: string;
+  actorUid: string | null;
+  actorEmail: string | null;
+  action: string;
+  target: string | null;
+  metadata: Record<string, unknown> | null;
+  timestamp: number;
+}
