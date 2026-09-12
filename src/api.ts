@@ -3,7 +3,7 @@ import { API_BASE_URL } from './config';
 import type {
   Apartment, ReservationRecord, DashboardSummary, PaymentInfo, RecordAction, ManualReservationInput, ApiErrorBody,
   Categories, MeInfo, AdminUser, Contract, ContractStatus, CleaningTask, CleaningStatus, MaintenanceTicket,
-  MaintenanceStatus, SiteTrafficDay,
+  MaintenanceStatus, SiteTrafficDay, AuditLogEntry,
 } from './types';
 
 export class ApiError extends Error {
@@ -102,6 +102,8 @@ export const api = {
     request<MaintenanceTicket>(`/maintenance/${code}/status`, { method: 'POST', body: JSON.stringify({ status }) }),
 
   getSiteTraffic: (days = 30) => request<SiteTrafficDay[]>(`/site-traffic?days=${days}`),
+
+  getAuditLog: (limit = 200) => request<AuditLogEntry[]>(`/audit-log?limit=${limit}`),
 };
 
 // Mensajes listos para mostrar en la UI ante los errores más comunes — un solo lugar, para no

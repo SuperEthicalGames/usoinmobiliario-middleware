@@ -65,3 +65,6 @@ export function WrenchIcon(props: IconProps) {
 export function AlertIcon(props: IconProps) {
   return <svg {...base} {...props}><path d="M12 9v4M12 17h.01" /><path d="M10.3 3.9 1.9 18a2 2 0 0 0 1.7 3h16.8a2 2 0 0 0 1.7-3L14.7 3.9a2 2 0 0 0-3.4 0Z" /></svg>;
 }
+export function HistoryIcon(props: IconProps) {
+  return <svg {...base} {...props}><path d="M3 12a9 9 0 1 0 3-6.7" /><path d="M3 4v4.5h4.5" /><path d="M12 8v4.5l3 2" /></svg>;
+}

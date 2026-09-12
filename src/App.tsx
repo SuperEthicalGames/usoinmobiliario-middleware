@@ -17,6 +17,7 @@ const Payments = lazy(() => import('./pages/Payments').then((m) => ({ default: m
 const Visits = lazy(() => import('./pages/Visits').then((m) => ({ default: m.Visits })));
 const Settings = lazy(() => import('./pages/Settings').then((m) => ({ default: m.Settings })));
 const Admins = lazy(() => import('./pages/Admins').then((m) => ({ default: m.Admins })));
+const AuditLog = lazy(() => import('./pages/AuditLog').then((m) => ({ default: m.AuditLog })));
 const Contracts = lazy(() => import('./pages/Contracts').then((m) => ({ default: m.Contracts })));
 const Cleaning = lazy(() => import('./pages/Cleaning').then((m) => ({ default: m.Cleaning })));
 const Maintenance = lazy(() => import('./pages/Maintenance').then((m) => ({ default: m.Maintenance })));
@@ -47,6 +48,7 @@ function Gate() {
           <Route path="mantenimiento" element={<Maintenance />} />
           <Route path="configuracion" element={<Settings />} />
           <Route path="administradores" element={<Admins />} />
+          <Route path="bitacora" element={<AuditLog />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
