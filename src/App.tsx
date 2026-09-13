@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { AuthProvider, useAuth } from './AuthContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Layout } from './components/Layout';
@@ -16,7 +16,7 @@ const ManualReservation = lazy(() => import('./pages/ManualReservation').then((m
 const Payments = lazy(() => import('./pages/Payments').then((m) => ({ default: m.Payments })));
 const Visits = lazy(() => import('./pages/Visits').then((m) => ({ default: m.Visits })));
 const Settings = lazy(() => import('./pages/Settings').then((m) => ({ default: m.Settings })));
-const Admins = lazy(() => import('./pages/Admins').then((m) => ({ default: m.Admins })));
+const Users = lazy(() => import('./pages/Users').then((m) => ({ default: m.Users })));
 const AuditLog = lazy(() => import('./pages/AuditLog').then((m) => ({ default: m.AuditLog })));
 const Contracts = lazy(() => import('./pages/Contracts').then((m) => ({ default: m.Contracts })));
 const Cleaning = lazy(() => import('./pages/Cleaning').then((m) => ({ default: m.Cleaning })));
@@ -24,6 +24,16 @@ const Maintenance = lazy(() => import('./pages/Maintenance').then((m) => ({ defa
 
 function ScreenFallback() {
   return <div className="flex min-h-[50vh] items-center justify-center text-sm text-ink/40">Cargando pantalla...</div>;
+}
+
+// Interfaz operacional simplificada para EMPLOYEE (sección 4 del pedido: Least Privilege) — un
+// empleado nunca debería siquiera renderizar Dashboard/Reservas/Pagos/etc. (el backend ya los
+// rechaza con 403, esto solo evita mostrarle una pantalla que va a fallar). Aseo y Mantenimiento
+// quedan FUERA de este guard a propósito: son las únicas pantallas que un empleado sí puede usar.
+function StaffOnlyRoute() {
+  const { role } = useAuth();
+  if (role === 'employee') return <Navigate to="/aseo" replace />;
+  return <Outlet />;
 }
 
 function Gate() {
@@ -36,19 +46,21 @@ function Gate() {
     <Suspense fallback={<ScreenFallback />}>
       <Routes>
         <Route element={<Layout />}>
-          <Route index element={<Dashboard />} />
-          <Route path="analiticas" element={<Analytics />} />
-          <Route path="apartamentos" element={<Apartments />} />
-          <Route path="reservas" element={<Reservations />} />
-          <Route path="reservas/nueva" element={<ManualReservation />} />
-          <Route path="pagos" element={<Payments />} />
-          <Route path="visitas" element={<Visits />} />
-          <Route path="contratos" element={<Contracts />} />
+          <Route element={<StaffOnlyRoute />}>
+            <Route index element={<Dashboard />} />
+            <Route path="analiticas" element={<Analytics />} />
+            <Route path="apartamentos" element={<Apartments />} />
+            <Route path="reservas" element={<Reservations />} />
+            <Route path="reservas/nueva" element={<ManualReservation />} />
+            <Route path="pagos" element={<Payments />} />
+            <Route path="visitas" element={<Visits />} />
+            <Route path="contratos" element={<Contracts />} />
+            <Route path="configuracion" element={<Settings />} />
+            <Route path="usuarios" element={<Users />} />
+            <Route path="bitacora" element={<AuditLog />} />
+          </Route>
           <Route path="aseo" element={<Cleaning />} />
           <Route path="mantenimiento" element={<Maintenance />} />
-          <Route path="configuracion" element={<Settings />} />
-          <Route path="administradores" element={<Admins />} />
-          <Route path="bitacora" element={<AuditLog />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

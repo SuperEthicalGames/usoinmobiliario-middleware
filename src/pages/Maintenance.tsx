@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { api, describeApiError } from '../api';
-import type { Apartment, Categories, MaintenancePriority, MaintenanceStatus, MaintenanceTicket } from '../types';
+import type { Apartment, Categories, EmployeeOption, MaintenancePriority, MaintenanceStatus, MaintenanceTicket } from '../types';
+import { useAuth } from '../AuthContext';
 import { AsyncSection, Button, Card, Field, PageHeader, Select, TextArea } from '../components/ui';
 import { MaintenanceStatusBadge, PriorityBadge } from '../components/StatusBadge';
 
@@ -15,13 +16,14 @@ const NEXT_STATUS: Record<MaintenanceStatus, MaintenanceStatus | null> = {
 };
 const NEXT_LABEL: Record<MaintenanceStatus, string> = { abierto: 'Tomar', 'en-progreso': 'Marcar resuelto', resuelto: '' };
 
-function CreateTicketForm({ apartments, categoryLabel, onCreated }: {
-  apartments: Apartment[]; categoryLabel: (t: string) => string; onCreated: (t: MaintenanceTicket) => void;
+function CreateTicketForm({ apartments, employees, categoryLabel, onCreated }: {
+  apartments: Apartment[]; employees: EmployeeOption[]; categoryLabel: (t: string) => string; onCreated: (t: MaintenanceTicket) => void;
 }) {
   const [selectedKey, setSelectedKey] = useState('');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<MaintenancePriority>('media');
+  const [assignedTo, setAssignedTo] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,10 +37,10 @@ function CreateTicketForm({ apartments, categoryLabel, onCreated }: {
     try {
       const created = await api.createMaintenanceTicket({
         unitType: selected.typeKey, unitNum: selected.num, unitLabel: `Apartamento H${selected.num}`,
-        title, description: description || undefined, priority,
+        title, description: description || undefined, priority, assignedTo: assignedTo || undefined,
       });
       onCreated(created);
-      setSelectedKey(''); setTitle(''); setDescription(''); setPriority('media');
+      setSelectedKey(''); setTitle(''); setDescription(''); setPriority('media'); setAssignedTo('');
     } catch (err) {
       setError(describeApiError(err));
     } finally {
@@ -66,6 +68,12 @@ function CreateTicketForm({ apartments, categoryLabel, onCreated }: {
         </div>
         <Field label="Título" required value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ej. Aire acondicionado no enfría" />
         <TextArea label="Descripción (opcional)" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
+        <Select label="Asignar a (opcional)" value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)}>
+          <option value="">Sin asignar</option>
+          {employees.map((emp) => (
+            <option key={emp.uid} value={emp.uid}>{emp.email ?? emp.uid}</option>
+          ))}
+        </Select>
         {error && <p className="text-sm text-red-dark">{error}</p>}
         <Button type="submit" disabled={submitting || !selected}>{submitting ? 'Creando...' : 'Reportar'}</Button>
       </form>
@@ -74,9 +82,12 @@ function CreateTicketForm({ apartments, categoryLabel, onCreated }: {
 }
 
 export function Maintenance() {
+  const { role } = useAuth();
+  const canAssign = role !== 'employee';
   const [data, setData] = useState<MaintenanceTicket[] | null>(null);
   const [apartments, setApartments] = useState<Apartment[]>([]);
   const [categories, setCategories] = useState<Categories | null>(null);
+  const [employees, setEmployees] = useState<EmployeeOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<MaintenanceStatus | 'todos'>('todos');
@@ -86,20 +97,24 @@ export function Maintenance() {
   function load() {
     setLoading(true);
     setError(null);
-    Promise.all([api.getMaintenanceTickets(), api.getApartments(), api.getCategories()])
-      .then(([tickets, apts, cats]) => {
+    Promise.all([api.getMaintenanceTickets(), api.getApartments(), api.getCategories(), canAssign ? api.getEmployees() : Promise.resolve([])])
+      .then(([tickets, apts, cats, emps]) => {
         const priorityRank: Record<MaintenancePriority, number> = { alta: 0, media: 1, baja: 2 };
         setData(tickets.sort((a, b) => priorityRank[a.priority] - priorityRank[b.priority] || b.createdAt.localeCompare(a.createdAt)));
         setApartments(apts);
         setCategories(cats);
+        setEmployees(emps);
       })
       .catch((err) => setError(describeApiError(err)))
       .finally(() => setLoading(false));
   }
-  useEffect(load, []);
+  useEffect(load, [canAssign]);
 
   function categoryLabel(typeKey: string): string {
     return categories?.[typeKey]?.catLabel?.es ?? typeKey;
+  }
+  function employeeLabel(uid: string): string {
+    return employees.find((e) => e.uid === uid)?.email ?? uid;
   }
 
   const filtered = useMemo(() => {
@@ -124,9 +139,14 @@ export function Maintenance() {
 
   return (
     <div>
-      <PageHeader title="Mantenimiento" subtitle="Fallas y pedidos reportados sobre un apartamento." />
+      <PageHeader
+        title="Mantenimiento"
+        subtitle={canAssign ? 'Fallas y pedidos reportados sobre un apartamento.' : 'Tus tickets de mantenimiento asignados.'}
+      />
       <div className="space-y-6">
-        <CreateTicketForm apartments={apartments} categoryLabel={categoryLabel} onCreated={(t) => setData((prev) => (prev ? [t, ...prev] : [t]))} />
+        {canAssign && (
+          <CreateTicketForm apartments={apartments} employees={employees} categoryLabel={categoryLabel} onCreated={(t) => setData((prev) => (prev ? [t, ...prev] : [t]))} />
+        )}
 
         <div className="flex flex-wrap gap-2">
           {STATUS_FILTERS.map((f) => (
@@ -157,7 +177,9 @@ export function Maintenance() {
                     </div>
                     <div className="mt-1 text-sm text-ink/80">{t.title}</div>
                     {t.description && <div className="mt-1 text-xs text-ink/70">{t.description}</div>}
-                    <div className="mt-1 text-xs text-muted">{t.code}{t.reportedBy ? ` · ${t.reportedBy}` : ''}</div>
+                    <div className="mt-1 text-xs text-muted">
+                      {t.code}{t.reportedBy ? ` · reportado por ${t.reportedBy}` : ''}{canAssign && t.assignedTo ? ` · asignado a ${employeeLabel(t.assignedTo)}` : ''}
+                    </div>
                   </div>
                   {NEXT_STATUS[t.status] && (
                     <Button disabled={busyCode === t.code} onClick={() => advance(t)} className="shrink-0">

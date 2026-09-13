@@ -38,6 +38,12 @@ export function ShieldIcon(props: IconProps) {
 export function LogoutIcon(props: IconProps) {
   return <svg {...base} {...props}><path d="M9 21H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3" /><path d="M16 17l5-5-5-5" /><path d="M21 12H9" /></svg>;
 }
+export function BellIcon(props: IconProps) {
+  return <svg {...base} {...props}><path d="M6 8a6 6 0 0 1 12 0c0 4.5 1.5 6 2 7H4c.5-1 2-2.5 2-7Z" /><path d="M10 20a2 2 0 0 0 4 0" /></svg>;
+}
+export function UsersIcon(props: IconProps) {
+  return <svg {...base} {...props}><circle cx="9" cy="8" r="3.25" /><path d="M2.75 20c0-3.5 2.8-6 6.25-6s6.25 2.5 6.25 6" /><path d="M16 4.3a3.25 3.25 0 0 1 0 6.4" /><path d="M18.5 14.3c2.2.6 3.75 2.6 3.75 5.7" /></svg>;
+}
 export function SearchIcon(props: IconProps) {
   return <svg {...base} {...props}><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>;
 }

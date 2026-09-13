@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { api, describeApiError } from '../api';
 import type { Apartment, Categories, OperationalStatus, ReservationRecord } from '../types';
-import { AsyncSection, Card, PageHeader, fmtCOP, fmtDate } from '../components/ui';
+import { useAuth } from '../AuthContext';
+import { AsyncSection, Button, Card, Field, PageHeader, Select, fmtCOP, fmtDate } from '../components/ui';
 import { OperationalStatusBadge } from '../components/StatusBadge';
 import { AlertIcon, CalendarIcon } from '../components/icons';
 import { RecordDetail } from '../components/RecordDetail';
+import { ApartmentEditor } from '../components/ApartmentEditor';
 import { todayIsoBogota } from '../lib/analytics';
 
 const STATUS_FILTERS: { key: OperationalStatus | 'todos'; label: string; active: string }[] = [
@@ -13,6 +15,55 @@ const STATUS_FILTERS: { key: OperationalStatus | 'todos'; label: string; active:
   { key: 'en-uso', label: 'En uso', active: 'bg-amber text-white' },
   { key: 'reservado', label: 'Reservado', active: 'bg-gold text-ink' },
 ];
+const VISIBILITY_FILTERS: { key: 'todas' | 'visibles' | 'ocultas'; label: string }[] = [
+  { key: 'todas', label: 'Todas' },
+  { key: 'visibles', label: 'Visibles' },
+  { key: 'ocultas', label: 'Ocultas' },
+];
+
+function CreateApartmentForm({ categories, onCreated, onCancel }: {
+  categories: Categories | null;
+  onCreated: (a: Apartment) => void;
+  onCancel: () => void;
+}) {
+  const categoryKeys = Object.keys(categories ?? {});
+  const [typeKey, setTypeKey] = useState(categoryKeys[0] ?? '');
+  const [num, setNum] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function onSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (!typeKey || !num.trim()) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      const created = await api.createApartment(typeKey, num.trim(), {});
+      onCreated(created);
+    } catch (err) {
+      setError(describeApiError(err));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Card className="p-6">
+      <h2 className="mb-1 font-display text-lg font-semibold text-ink">Nuevo apartamento</h2>
+      <p className="mb-4 text-sm text-muted">Se crea oculto por defecto — ábrelo después de crearlo para llenar tarifas, área y demás antes de hacerlo visible.</p>
+      <form onSubmit={onSubmit} className="flex flex-wrap items-end gap-3">
+        <Select label="Categoría" required value={typeKey} onChange={(e) => setTypeKey(e.target.value)} className="w-full sm:w-auto">
+          {categoryKeys.length === 0 && <option value="">Sin categorías configuradas</option>}
+          {categoryKeys.map((k) => <option key={k} value={k}>{categories?.[k]?.catLabel?.es ?? k}</option>)}
+        </Select>
+        <Field label="Número de unidad" required value={num} onChange={(e) => setNum(e.target.value)} placeholder="09" className="w-full sm:w-auto" />
+        <Button type="submit" disabled={submitting || !typeKey} className="w-full sm:w-auto">{submitting ? 'Creando...' : 'Crear'}</Button>
+        <Button type="button" variant="ghost" onClick={onCancel} className="w-full sm:w-auto">Cancelar</Button>
+      </form>
+      {error && <p className="mt-3 text-sm text-red-dark">{error}</p>}
+    </Card>
+  );
+}
 
 // Colores fijos por categoría (no por status) para que un vistazo rápido a la grilla ya
 // diferencie 1 Ambiente de 2 Ambientes sin tener que leer el texto de cada tarjeta.
@@ -52,14 +103,18 @@ function relevantStayFor(apt: Apartment, reservations: ReservationRecord[], toda
 }
 
 export function Apartments() {
+  const { isSuperAdmin } = useAuth();
   const [data, setData] = useState<Apartment[] | null>(null);
   const [categories, setCategories] = useState<Categories | null>(null);
   const [reservations, setReservations] = useState<ReservationRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<OperationalStatus | 'todos'>('todos');
+  const [visibilityFilter, setVisibilityFilter] = useState<'todas' | 'visibles' | 'ocultas'>('todas');
   const [categoryFilter, setCategoryFilter] = useState<string | 'todas'>('todas');
   const [selected, setSelected] = useState<ReservationRecord | null>(null);
+  const [editing, setEditing] = useState<Apartment | null>(null);
+  const [creating, setCreating] = useState(false);
 
   function load() {
     setLoading(true);
@@ -91,21 +146,39 @@ export function Apartments() {
     return data.filter((a) => {
       if (statusFilter !== 'todos' && (a.effectiveStatus ?? a.status) !== statusFilter) return false;
       if (categoryFilter !== 'todas' && a.typeKey !== categoryFilter) return false;
+      const visible = a.isVisible !== false;
+      if (visibilityFilter === 'visibles' && !visible) return false;
+      if (visibilityFilter === 'ocultas' && visible) return false;
       return true;
     });
-  }, [data, statusFilter, categoryFilter]);
+  }, [data, statusFilter, categoryFilter, visibilityFilter]);
 
   function handleUpdated(updated: ReservationRecord) {
     setReservations((prev) => prev.map((r) => (r.code === updated.code ? updated : r)));
     setSelected(updated);
+  }
+  function handleApartmentSaved(updated: Apartment) {
+    setData((prev) => prev?.map((a) => (a._key === updated._key ? { ...a, ...updated } : a)) ?? prev);
   }
 
   return (
     <div>
       <PageHeader
         title="Apartamentos"
-        subtitle="El estado que se muestra ya considera reservas confirmadas — puede diferir del campo manual que se edita en Firebase."
+        subtitle={isSuperAdmin
+          ? 'El estado operativo se recalcula solo contra reservas confirmadas. Haz clic en una tarjeta para editarla.'
+          : 'El estado que se muestra ya considera reservas confirmadas.'}
+        action={isSuperAdmin ? <Button onClick={() => setCreating((v) => !v)}>{creating ? 'Cerrar' : 'Nuevo apartamento'}</Button> : undefined}
       />
+      {creating && isSuperAdmin && (
+        <div className="mb-5">
+          <CreateApartmentForm
+            categories={categories}
+            onCancel={() => setCreating(false)}
+            onCreated={(a) => { setData((prev) => (prev ? [...prev, a] : [a])); setCreating(false); }}
+          />
+        </div>
+      )}
       <div className="mb-5 flex flex-wrap items-center gap-x-5 gap-y-3">
         <div className="flex flex-wrap gap-2">
           {STATUS_FILTERS.map((f) => (
@@ -124,6 +197,15 @@ export function Apartments() {
             </FilterPill>
           ))}
         </div>
+        {isSuperAdmin && (
+          <div className="flex flex-wrap gap-2 border-l border-line pl-5">
+            {VISIBILITY_FILTERS.map((f) => (
+              <FilterPill key={f.key} active={visibilityFilter === f.key} activeClass="bg-graphite-900 text-white" onClick={() => setVisibilityFilter(f.key)}>
+                {f.label}
+              </FilterPill>
+            ))}
+          </div>
+        )}
       </div>
       <AsyncSection loading={loading} error={error} data={filtered} empty="No hay apartamentos con este filtro." onRetry={load}>
         {(apts) => (
@@ -132,16 +214,27 @@ export function Apartments() {
               const effective = apt.effectiveStatus ?? apt.status;
               const stay = effective !== 'disponible' ? relevantStayFor(apt, reservations, today) : null;
               const isCurrent = stay ? stay.checkin! <= today && today < stay.checkout! : false;
+              const isHidden = apt.isVisible === false;
               return (
-                <Card key={apt._key} className="p-5" hoverable>
-                  <div className="mb-2 flex items-start justify-between gap-2">
-                    <div className="font-display text-lg font-semibold text-ink">Apartamento H{apt.num}</div>
-                    <OperationalStatusBadge status={effective} />
-                  </div>
-                  <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-muted">
-                    <span className={`h-2 w-2 rounded-full ${CATEGORY_DOT[apt.typeKey] ?? 'bg-graphite-400'}`} />
-                    {categoryLabel(apt.typeKey)}
-                  </div>
+                <Card key={apt._key} className={`p-5 ${isHidden ? 'opacity-60' : ''}`} hoverable={isSuperAdmin}>
+                  <button
+                    type="button"
+                    onClick={() => isSuperAdmin && setEditing(apt)}
+                    disabled={!isSuperAdmin}
+                    className={`w-full text-left ${isSuperAdmin ? 'cursor-pointer' : 'cursor-default'}`}
+                  >
+                    <div className="mb-2 flex items-start justify-between gap-2">
+                      <div className="font-display text-lg font-semibold text-ink">Apartamento H{apt.num}</div>
+                      <div className="flex items-center gap-1.5">
+                        {isHidden && <span className="rounded-full bg-graphite-400/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-graphite-600">Oculto</span>}
+                        <OperationalStatusBadge status={effective} />
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-muted">
+                      <span className={`h-2 w-2 rounded-full ${CATEGORY_DOT[apt.typeKey] ?? 'bg-graphite-400'}`} />
+                      {categoryLabel(apt.typeKey)}
+                    </div>
+                  </button>
                   <div className="mt-3 grid grid-cols-3 gap-2 text-sm text-ink/70">
                     <div>{apt.area} m²</div>
                     <div>{apt.maxPersons} huésp.</div>
@@ -190,6 +283,7 @@ export function Apartments() {
       </AsyncSection>
 
       {selected && <RecordDetail record={selected} onClose={() => setSelected(null)} onUpdated={handleUpdated} />}
+      {editing && <ApartmentEditor apartment={editing} onClose={() => setEditing(null)} onSaved={handleApartmentSaved} />}
     </div>
   );
 }

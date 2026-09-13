@@ -2,8 +2,8 @@ import { auth } from './firebase';
 import { API_BASE_URL } from './config';
 import type {
   Apartment, ReservationRecord, DashboardSummary, PaymentInfo, RecordAction, ManualReservationInput, ApiErrorBody,
-  Categories, MeInfo, AdminUser, Contract, ContractStatus, CleaningTask, CleaningStatus, MaintenanceTicket,
-  MaintenanceStatus, SiteTrafficDay, AuditLogEntry,
+  Categories, MeInfo, AdminUser, Role, EmployeeOption, Contract, ContractStatus, CleaningTask, CleaningStatus,
+  MaintenanceTicket, MaintenanceStatus, SiteTrafficDay, AuditLogEntry, Notification,
 } from './types';
 
 export class ApiError extends Error {
@@ -56,6 +56,10 @@ export const api = {
   getMe: () => request<MeInfo>('/me'),
   getDashboard: () => request<DashboardSummary>('/dashboard'),
   getApartments: () => request<Apartment[]>('/apartments'),
+  updateApartment: (typeKey: string, num: string, patch: Record<string, unknown>) =>
+    request<Apartment>(`/apartments/${typeKey}/${num}`, { method: 'PUT', body: JSON.stringify(patch) }),
+  createApartment: (typeKey: string, num: string, data: Record<string, unknown>) =>
+    request<Apartment>('/apartments', { method: 'POST', body: JSON.stringify({ typeKey, num, ...data }) }),
   getCategories: () => request<Categories>('/categories'),
   getReservations: () => request<ReservationRecord[]>('/reservations'),
   getVisits: () => request<ReservationRecord[]>('/visits'),
@@ -64,8 +68,10 @@ export const api = {
   updatePaymentInfo: (data: PaymentInfo) =>
     request<PaymentInfo>('/payment-info', { method: 'PUT', body: JSON.stringify(data) }),
 
-  createManualReservation: (data: ManualReservationInput) =>
-    request<ReservationRecord>('/reservations', { method: 'POST', body: JSON.stringify(data) }),
+  // idempotencyKey: mismo valor entre reintentos del MISMO intento de envío (doble-click, retry
+  // tras timeout) evita crear dos reservas duplicadas — ver adminRoutes.js (fb.withIdempotency).
+  createManualReservation: (data: ManualReservationInput, idempotencyKey: string) =>
+    request<ReservationRecord>('/reservations', { method: 'POST', body: JSON.stringify(data), headers: { 'Idempotency-Key': idempotencyKey } }),
 
   runRecordAction: (code: string, action: RecordAction) =>
     request<ReservationRecord>(`/records/${code}/${action}`, { method: 'POST' }),
@@ -74,11 +80,18 @@ export const api = {
   rejectPayment: (code: string) => request<ReservationRecord>(`/payments/${code}/reject`, { method: 'POST' }),
   registerCashPayment: (code: string) => request<ReservationRecord>(`/payments/${code}/register-cash`, { method: 'POST' }),
 
-  listAdmins: () => request<AdminUser[]>('/admins'),
-  createAdmin: (email: string, password: string) =>
-    request<AdminUser>('/admins', { method: 'POST', body: JSON.stringify({ email, password }) }),
-  disableAdmin: (uid: string) => request<AdminUser>(`/admins/${uid}/disable`, { method: 'POST' }),
-  enableAdmin: (uid: string) => request<AdminUser>(`/admins/${uid}/enable`, { method: 'POST' }),
+  listUsers: () => request<AdminUser[]>('/users'),
+  createUser: (email: string, password: string, role: 'admin' | 'employee') =>
+    request<AdminUser>('/users', { method: 'POST', body: JSON.stringify({ email, password, role }) }),
+  disableUser: (uid: string) => request<AdminUser>(`/users/${uid}/disable`, { method: 'POST' }),
+  enableUser: (uid: string) => request<AdminUser>(`/users/${uid}/enable`, { method: 'POST' }),
+  setUserRole: (uid: string, role: 'admin' | 'employee') =>
+    request<{ uid: string; role: Role }>(`/users/${uid}/role`, { method: 'PUT', body: JSON.stringify({ role }) }),
+
+  getNotifications: (limit = 50) => request<Notification[]>(`/notifications?limit=${limit}`),
+  markNotificationRead: (id: string) => request<{ ok: true }>(`/notifications/${id}/read`, { method: 'POST' }),
+
+  getEmployees: () => request<EmployeeOption[]>('/employees'),
 
   checkIn: (code: string) => request<ReservationRecord>(`/records/${code}/check-in`, { method: 'POST' }),
   checkOut: (code: string) => request<ReservationRecord>(`/records/${code}/check-out`, { method: 'POST' }),
@@ -114,6 +127,10 @@ export const API_ERROR_MESSAGES: Record<string, string> = {
   'not-authenticated': 'Tu sesión no es válida. Cierra sesión y vuelve a entrar.',
   'invalid-token': 'Tu sesión venció. Cierra sesión y vuelve a entrar.',
   'not-super-admin': 'Esta acción es solo para el administrador principal.',
+  forbidden: 'No tienes permiso para hacer esto.',
+  'cannot-disable-self': 'No puedes desactivar tu propia cuenta.',
+  'invalid-role': 'Rol inválido.',
+  'duplicate-request-in-progress': 'Esta acción ya se está procesando — espera un momento antes de reintentar.',
   'reservation-not-active': 'Esta reserva ya está rechazada o cancelada — no se puede verificar/rechazar su pago.',
   'reservation-not-confirmed': 'Solo se puede registrar el check-in de una reserva confirmada.',
   'already-checked-in': 'Esta reserva ya tiene un check-in registrado.',

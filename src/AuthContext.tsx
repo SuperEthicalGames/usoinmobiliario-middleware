@@ -2,10 +2,12 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut, type User } from 'firebase/auth';
 import { auth } from './firebase';
 import { api } from './api';
+import type { Role } from './types';
 
 interface AuthState {
   user: User | null;
   loading: boolean;
+  role: Role | null;
   isSuperAdmin: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -19,24 +21,24 @@ const AuthContext = createContext<AuthState | null>(null);
 // garantía estructural que ya existe para el admin de Unity ("solo el admin puede entrar").
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [role, setRole] = useState<Role | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     return onAuthStateChanged(auth, (u) => {
       setUser(u);
       if (!u) {
-        // Sesión cerrada (o nunca abierta) — nunca se queda con un isSuperAdmin de una sesión
-        // anterior mientras se resuelve la nueva.
-        setIsSuperAdmin(false);
+        // Sesión cerrada (o nunca abierta) — nunca se queda con un rol de una sesión anterior
+        // mientras se resuelve la nueva.
+        setRole(null);
         setLoading(false);
         return;
       }
-      // isSuperAdmin lo decide el BACKEND (compara el correo contra config.superAdminEmail), no
-      // el frontend — evita tener que hardcodear/confiar en ese correo acá también.
+      // El rol lo decide el BACKEND (adminAuth.attachRole), no el frontend — evita tener que
+      // hardcodear/confiar en el correo del dueño o en cualquier otra regla acá también.
       api.getMe()
-        .then((me) => setIsSuperAdmin(me.isSuperAdmin))
-        .catch(() => setIsSuperAdmin(false))
+        .then((me) => setRole(me.role))
+        .catch(() => setRole(null))
         .finally(() => setLoading(false));
     });
   }, []);
@@ -48,7 +50,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await signOut(auth);
   }
 
-  return <AuthContext.Provider value={{ user, loading, isSuperAdmin, login, logout }}>{children}</AuthContext.Provider>;
+  const isSuperAdmin = role === 'owner';
+  return <AuthContext.Provider value={{ user, loading, role, isSuperAdmin, login, logout }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth(): AuthState {

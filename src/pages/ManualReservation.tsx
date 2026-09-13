@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, ApiError, describeApiError } from '../api';
 import type { Apartment, Categories, ReservationRecord } from '../types';
@@ -28,6 +28,9 @@ export function ManualReservation() {
   const [error, setError] = useState<string | null>(null);
   const [missingFields, setMissingFields] = useState<string[]>([]);
   const [created, setCreated] = useState<ReservationRecord | null>(null);
+  // Misma clave entre reintentos del MISMO intento de envío (doble-click, reintento tras
+  // timeout) — se regenera solo tras éxito o al cambiar de apartamento (nueva intención real).
+  const idempotencyKeyRef = useRef<string>(crypto.randomUUID());
 
   // ANTES: sin catch acá — si esta llamada fallaba (por ejemplo el cold-start del backend
   // gratuito en Render), el selector se quedaba vacío para siempre, sin aviso ni forma de
@@ -67,8 +70,9 @@ export function ManualReservation() {
       const rec = await api.createManualReservation({
         typeKey: selected.typeKey, num: selected.num, checkin, checkout, guests,
         name, phone, email, notes: notes || undefined,
-      });
+      }, idempotencyKeyRef.current);
       setCreated(rec);
+      idempotencyKeyRef.current = crypto.randomUUID(); // lista para una próxima reserva distinta
     } catch (err) {
       if (err instanceof ApiError) {
         setError(ERROR_MESSAGES[err.code] ?? describeApiError(err));

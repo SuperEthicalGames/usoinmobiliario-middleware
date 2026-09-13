@@ -24,6 +24,7 @@ export interface Apartment {
   num: string;
   status: OperationalStatus; // campo crudo, control manual del admin
   effectiveStatus?: OperationalStatus; // solo en /apartments — status crudo salvo que una reserva CONFIRMADA lo anule
+  isVisible?: boolean; // ausente = true (compatibilidad con unidades ya existentes) — false la saca del catálogo público, nunca del panel
   area: number;
   maxPersons: number;
   baths: number;
@@ -147,6 +148,7 @@ export interface MaintenanceTicket {
   title: string;
   description?: string;
   priority: MaintenancePriority;
+  assignedTo?: string;
   status: MaintenanceStatus;
   reportedBy?: string;
   createdAt: string;
@@ -205,28 +207,57 @@ export interface Category {
 }
 export type Categories = Record<string, Category>;
 
+// OWNER es siempre config.superAdminEmail en el backend (nunca un dato asignable) — ADMIN y
+// EMPLOYEE son cuentas de Firebase Auth con un documento en roles/{uid} (ver adminAuth.js).
+export type Role = 'owner' | 'admin' | 'employee';
+
 export interface MeInfo {
   uid: string;
   email: string;
+  role: Role;
   isSuperAdmin: boolean;
 }
 
 export interface AdminUser {
   uid: string;
   email: string | null;
+  role: Role;
   disabled: boolean;
   createdAt: string;
   lastSignInAt: string | null;
 }
 
+// Proyección mínima de un empleado, para poblar el selector "asignar a" en Aseo/Mantenimiento —
+// distinto de AdminUser (que trae metadata sensible y solo lo devuelve /users, owner-only).
+export interface EmployeeOption {
+  uid: string;
+  email: string | null;
+}
+
+export interface Notification {
+  id: string;
+  type: 'cleaning' | 'maintenance' | 'reservation' | 'payment' | 'system';
+  message: string;
+  targetCode: string | null;
+  read: boolean;
+  createdAt: string;
+}
+
 // Espejo de fb.logAdminAction/listAuditLog (whatsapp-assistant/src/firebase.js) — una entrada
 // por cada acción administrativa que cambia estado real (confirmar/rechazar/cancelar reservas,
 // verificar pagos, crear/revocar admins, editar datos bancarios, etc.).
+// Derivado en el backend del prefijo de `action` (ver firebase.js: domainForAction) — separa
+// reservas/financiero/apartamentos/admin/operaciones (secciones 18-19 del pedido) sin dos
+// árboles de auditoría distintos. Entradas viejas (antes de este campo) no lo traen — AuditLog.tsx
+// las trata como 'other', nunca se reescriben.
+export type AuditDomain = 'reservation' | 'financial' | 'apartment' | 'admin' | 'operations' | 'other';
+
 export interface AuditLogEntry {
   id: string;
   actorUid: string | null;
   actorEmail: string | null;
   action: string;
+  domain?: AuditDomain;
   target: string | null;
   metadata: Record<string, unknown> | null;
   timestamp: number;

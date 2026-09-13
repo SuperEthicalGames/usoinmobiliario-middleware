@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { api, describeApiError } from '../api';
-import type { Apartment, Categories, CleaningStatus, CleaningTask } from '../types';
+import type { Apartment, Categories, CleaningStatus, CleaningTask, EmployeeOption } from '../types';
+import { useAuth } from '../AuthContext';
 import { AsyncSection, Button, Card, Field, PageHeader, Select, fmtDate } from '../components/ui';
 import { CleaningStatusBadge } from '../components/StatusBadge';
 
@@ -15,8 +16,8 @@ const NEXT_STATUS: Record<CleaningStatus, CleaningStatus | null> = {
 };
 const NEXT_LABEL: Record<CleaningStatus, string> = { pendiente: 'Iniciar', 'en-progreso': 'Marcar completada', completado: '' };
 
-function CreateTaskForm({ apartments, categoryLabel, onCreated }: {
-  apartments: Apartment[]; categoryLabel: (t: string) => string; onCreated: (t: CleaningTask) => void;
+function CreateTaskForm({ apartments, employees, categoryLabel, onCreated }: {
+  apartments: Apartment[]; employees: EmployeeOption[]; categoryLabel: (t: string) => string; onCreated: (t: CleaningTask) => void;
 }) {
   const [selectedKey, setSelectedKey] = useState('');
   const [scheduledDate, setScheduledDate] = useState('');
@@ -57,18 +58,27 @@ function CreateTaskForm({ apartments, categoryLabel, onCreated }: {
           ))}
         </Select>
         <Field label="Fecha" type="date" required value={scheduledDate} onChange={(e) => setScheduledDate(e.target.value)} className="w-full sm:w-auto" />
-        <Field label="Asignado a (opcional)" value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)} className="w-full sm:w-auto" />
+        <Select label="Asignar a (opcional)" value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)} className="w-full sm:w-auto">
+          <option value="">Sin asignar</option>
+          {employees.map((emp) => (
+            <option key={emp.uid} value={emp.uid}>{emp.email ?? emp.uid}</option>
+          ))}
+        </Select>
         <Button type="submit" disabled={submitting || !selected} className="w-full sm:w-auto">{submitting ? 'Creando...' : 'Programar'}</Button>
       </form>
+      {employees.length === 0 && <p className="mt-3 text-xs text-muted">No hay empleados creados todavía — la tarea quedará sin asignar. Crea uno en Usuarios.</p>}
       {error && <p className="mt-3 text-sm text-red-dark">{error}</p>}
     </Card>
   );
 }
 
 export function Cleaning() {
+  const { role } = useAuth();
+  const canAssign = role !== 'employee';
   const [data, setData] = useState<CleaningTask[] | null>(null);
   const [apartments, setApartments] = useState<Apartment[]>([]);
   const [categories, setCategories] = useState<Categories | null>(null);
+  const [employees, setEmployees] = useState<EmployeeOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<CleaningStatus | 'todos'>('todos');
@@ -78,19 +88,25 @@ export function Cleaning() {
   function load() {
     setLoading(true);
     setError(null);
-    Promise.all([api.getCleaningTasks(), api.getApartments(), api.getCategories()])
-      .then(([tasks, apts, cats]) => {
+    // /employees es solo para owner/admin — un empleado ni lo necesita (no puede asignar) ni
+    // tiene permiso para llamarlo, así que se omite entero para ese rol.
+    Promise.all([api.getCleaningTasks(), api.getApartments(), api.getCategories(), canAssign ? api.getEmployees() : Promise.resolve([])])
+      .then(([tasks, apts, cats, emps]) => {
         setData(tasks.sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate)));
         setApartments(apts);
         setCategories(cats);
+        setEmployees(emps);
       })
       .catch((err) => setError(describeApiError(err)))
       .finally(() => setLoading(false));
   }
-  useEffect(load, []);
+  useEffect(load, [canAssign]);
 
   function categoryLabel(typeKey: string): string {
     return categories?.[typeKey]?.catLabel?.es ?? typeKey;
+  }
+  function employeeLabel(uid: string): string {
+    return employees.find((e) => e.uid === uid)?.email ?? uid;
   }
 
   const filtered = useMemo(() => {
@@ -115,9 +131,14 @@ export function Cleaning() {
 
   return (
     <div>
-      <PageHeader title="Aseo" subtitle="Tareas de limpieza entre huéspedes — el check-out real ya programa la de salida automáticamente." />
+      <PageHeader
+        title="Aseo"
+        subtitle={canAssign ? 'Tareas de limpieza entre huéspedes — el check-out real ya programa la de salida automáticamente.' : 'Tus tareas de aseo asignadas.'}
+      />
       <div className="space-y-6">
-        <CreateTaskForm apartments={apartments} categoryLabel={categoryLabel} onCreated={(t) => setData((prev) => (prev ? [t, ...prev] : [t]))} />
+        {canAssign && (
+          <CreateTaskForm apartments={apartments} employees={employees} categoryLabel={categoryLabel} onCreated={(t) => setData((prev) => (prev ? [t, ...prev] : [t]))} />
+        )}
 
         <div className="flex flex-wrap gap-2">
           {STATUS_FILTERS.map((f) => (
@@ -147,7 +168,7 @@ export function Cleaning() {
                       {t.relatedReservationCode && <span className="text-xs text-muted">de salida · {t.relatedReservationCode}</span>}
                     </div>
                     <div className="mt-1 text-xs text-muted">
-                      {fmtDate(t.scheduledDate)} · {t.code}{t.assignedTo ? ` · ${t.assignedTo}` : ''}
+                      {fmtDate(t.scheduledDate)} · {t.code}{canAssign && t.assignedTo ? ` · ${employeeLabel(t.assignedTo)}` : ''}
                     </div>
                     {t.notes && <div className="mt-1 text-xs text-ink/70">{t.notes}</div>}
                   </div>

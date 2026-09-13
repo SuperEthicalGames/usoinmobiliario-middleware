@@ -2,15 +2,16 @@ import { useEffect, useState, type ComponentType } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../AuthContext';
 import logoIcon from '../assets/brand/logo-icon.webp';
+import { NotificationBell } from './NotificationBell';
 import {
   BuildingIcon, CalendarIcon, CardIcon, ChartIcon, CloseIcon, DocumentIcon, GearIcon, GridIcon, HistoryIcon, LogoutIcon,
-  MenuIcon, PinIcon, ShieldIcon, SparkleIcon, WrenchIcon, type IconProps,
+  MenuIcon, PinIcon, SparkleIcon, UsersIcon, WrenchIcon, type IconProps,
 } from './icons';
 
 // Reserva Manual se entra desde Reservas con un botón, no es nav propio — mismo criterio ya
 // usado al construir esto en Unity: el brief original solo listaba 6 pantallas; Analíticas,
 // Contratos, Aseo y Mantenimiento se sumaron después para control operativo completo.
-const NAV_ITEMS: { to: string; label: string; end?: boolean; icon: ComponentType<IconProps> }[] = [
+const STAFF_NAV_ITEMS: { to: string; label: string; end?: boolean; icon: ComponentType<IconProps> }[] = [
   { to: '/', label: 'Dashboard', end: true, icon: GridIcon },
   { to: '/analiticas', label: 'Analíticas', icon: ChartIcon },
   { to: '/apartamentos', label: 'Apartamentos', icon: BuildingIcon },
@@ -22,15 +23,25 @@ const NAV_ITEMS: { to: string; label: string; end?: boolean; icon: ComponentType
   { to: '/mantenimiento', label: 'Mantenimiento', icon: WrenchIcon },
   { to: '/configuracion', label: 'Configuración', icon: GearIcon },
 ];
+// Interfaz operacional simplificada (sección 4 del pedido: Least Privilege) — un empleado nunca
+// ve nada de reservas/pagos/apartamentos/analíticas/configuración, solo lo que necesita para
+// trabajar. Restricción real en el backend (STAFF/ANY_STAFF en adminRoutes.js); esto es solo
+// para no mostrar links que el servidor va a rechazar con 403.
+const EMPLOYEE_NAV_ITEMS: typeof STAFF_NAV_ITEMS = [
+  { to: '/aseo', label: 'Aseo', end: true, icon: SparkleIcon },
+  { to: '/mantenimiento', label: 'Mantenimiento', icon: WrenchIcon },
+];
 
 function SidebarContent({ onNavigate }: { onNavigate: () => void }) {
-  const { user, isSuperAdmin, logout } = useAuth();
-  // Administradores/Bitácora solo aparecen para el super admin — restricción real vive en el
-  // backend (requireSuperAdmin), esto es solo para no mostrarle a un admin normal un link a
-  // algo que de todas formas el servidor le va a rechazar con 403.
-  const navItems: typeof NAV_ITEMS = isSuperAdmin
-    ? [...NAV_ITEMS, { to: '/administradores', label: 'Administradores', icon: ShieldIcon }, { to: '/bitacora', label: 'Bitácora', icon: HistoryIcon }]
-    : NAV_ITEMS;
+  const { user, role, isSuperAdmin, logout } = useAuth();
+  // Usuarios/Bitácora solo aparecen para el dueño — restricción real vive en el backend
+  // (requireSuperAdmin), esto es solo para no mostrarle a alguien un link a algo que de todas
+  // formas el servidor le va a rechazar con 403.
+  const navItems: typeof STAFF_NAV_ITEMS = role === 'employee'
+    ? EMPLOYEE_NAV_ITEMS
+    : isSuperAdmin
+      ? [...STAFF_NAV_ITEMS, { to: '/usuarios', label: 'Usuarios', icon: UsersIcon }, { to: '/bitacora', label: 'Bitácora', icon: HistoryIcon }]
+      : STAFF_NAV_ITEMS;
 
   return (
     <>
@@ -66,12 +77,21 @@ function SidebarContent({ onNavigate }: { onNavigate: () => void }) {
       </nav>
 
       <div className="border-t border-white/10 px-4 py-4">
-        <div className="truncate text-xs text-graphite-400" title={user?.email ?? ''}>{user?.email}</div>
-        {isSuperAdmin && (
-          <span className="mt-1.5 inline-flex items-center rounded-full bg-gold/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-gold-light">
-            Admin principal
-          </span>
-        )}
+        <div className="flex items-center justify-between gap-2">
+          <div className="min-w-0">
+            <div className="truncate text-xs text-graphite-400" title={user?.email ?? ''}>{user?.email}</div>
+            {role && role !== 'admin' && (
+              <span
+                className={`mt-1.5 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                  role === 'owner' ? 'bg-gold/15 text-gold-light' : 'bg-emerald/20 text-emerald'
+                }`}
+              >
+                {role === 'owner' ? 'Dueño' : 'Empleado'}
+              </span>
+            )}
+          </div>
+          <NotificationBell />
+        </div>
         <button onClick={() => logout()} className="mt-3 flex items-center gap-1.5 text-sm font-bold text-graphite-400 transition hover:text-white">
           <LogoutIcon className="h-4 w-4" />
           Cerrar sesión

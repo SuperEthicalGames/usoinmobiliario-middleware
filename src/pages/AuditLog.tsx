@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { api, describeApiError } from '../api';
-import type { AuditLogEntry } from '../types';
+import type { AuditDomain, AuditLogEntry } from '../types';
 import { useAuth } from '../AuthContext';
 import { AsyncSection, Card, PageHeader } from '../components/ui';
 
@@ -20,9 +20,15 @@ const ACTION_LABELS: Record<string, string> = {
   'admin.create': 'Creó un administrador',
   'admin.disable': 'Revocó un administrador',
   'admin.enable': 'Reactivó un administrador',
+  'user.create': 'Creó una cuenta de usuario',
+  'user.disable': 'Revocó una cuenta de usuario',
+  'user.enable': 'Reactivó una cuenta de usuario',
+  'user.set_role': 'Cambió el rol de una cuenta',
   'payment.verify': 'Verificó un pago',
   'payment.reject': 'Rechazó un pago',
   'payment.register_cash': 'Registró un pago en efectivo',
+  'apartment.create': 'Creó un apartamento',
+  'apartment.update': 'Editó un apartamento',
   'contract.create': 'Creó un contrato',
   'contract.set_status': 'Cambió el estado de un contrato',
   'cleaning.create': 'Creó una tarea de aseo',
@@ -30,6 +36,18 @@ const ACTION_LABELS: Record<string, string> = {
   'maintenance.create': 'Creó un ticket de mantenimiento',
   'maintenance.set_status': 'Cambió el estado de un ticket de mantenimiento',
 };
+
+// Separación reserva/financiero pedida en las secciones 18-19 del pedido — derivada en el
+// backend (domainForAction), acá solo se filtra y se etiqueta. 'other' cubre entradas de antes
+// de que este campo existiera, nunca se reescriben.
+const DOMAIN_FILTERS: { key: AuditDomain | 'todos'; label: string }[] = [
+  { key: 'todos', label: 'Todas' },
+  { key: 'reservation', label: 'Reservas' },
+  { key: 'financial', label: 'Financiero' },
+  { key: 'apartment', label: 'Apartamentos' },
+  { key: 'operations', label: 'Operaciones' },
+  { key: 'admin', label: 'Usuarios' },
+];
 
 function fmtDateTime(ms: number): string {
   return new Date(ms).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'medium' });
@@ -48,6 +66,7 @@ export function AuditLog() {
   const [data, setData] = useState<AuditLogEntry[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [domainFilter, setDomainFilter] = useState<AuditDomain | 'todos'>('todos');
 
   function load() {
     setLoading(true);
@@ -56,18 +75,37 @@ export function AuditLog() {
   }
   useEffect(load, []);
 
+  const filtered = useMemo(() => {
+    if (!data) return data;
+    if (domainFilter === 'todos') return data;
+    return data.filter((e) => (e.domain ?? 'other') === domainFilter);
+  }, [data, domainFilter]);
+
   // Defensa en profundidad del lado del cliente — la restricción real ya la aplica el backend
   // (requireSuperAdmin devuelve 403), esto solo evita mostrarle la pantalla a quien de todas
-  // formas no puede usarla. Mismo criterio que Admins.tsx.
+  // formas no puede usarla. Mismo criterio que Users.tsx.
   if (!isSuperAdmin) return <Navigate to="/" replace />;
 
   return (
     <div>
       <PageHeader
         title="Bitácora"
-        subtitle="Quién hizo qué en el panel — las últimas 200 acciones administrativas que cambiaron algo real (reservas, pagos, contratos, administradores)."
+        subtitle="Quién hizo qué en el panel — las últimas 200 acciones administrativas que cambiaron algo real (reservas, pagos, apartamentos, usuarios)."
       />
-      <AsyncSection loading={loading} error={error} data={data} onRetry={load} empty="Todavía no hay acciones registradas.">
+      <div className="mb-5 flex flex-wrap gap-2">
+        {DOMAIN_FILTERS.map((f) => (
+          <button
+            key={f.key}
+            onClick={() => setDomainFilter(f.key)}
+            className={`rounded-full px-3.5 py-1.5 text-xs font-bold uppercase tracking-wide transition ${
+              domainFilter === f.key ? 'bg-graphite-900 text-white' : 'border border-line text-muted hover:border-gold/60 hover:text-gold-dark'
+            }`}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
+      <AsyncSection loading={loading} error={error} data={filtered} onRetry={load} empty="No hay acciones registradas con este filtro.">
         {(entries) => (
           <Card className="overflow-hidden">
             <div className="hidden overflow-x-auto md:block">
