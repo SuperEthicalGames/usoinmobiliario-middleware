@@ -2,7 +2,7 @@ import { auth } from './firebase';
 import { API_BASE_URL } from './config';
 import type {
   Apartment, ReservationRecord, DashboardSummary, PaymentInfo, RecordAction, ManualReservationInput, ApiErrorBody,
-  Categories, MeInfo, AdminUser, Role, EmployeeOption, Contract, ContractStatus, CleaningTask, CleaningStatus,
+  Categories, Category, MeInfo, AdminUser, Role, EmployeeOption, Contract, ContractStatus, CleaningTask, CleaningStatus,
   MaintenanceTicket, MaintenanceStatus, SiteTrafficDay, AuditLogEntry, Notification,
 } from './types';
 
@@ -61,6 +61,8 @@ export const api = {
   createApartment: (typeKey: string, num: string, data: Record<string, unknown>) =>
     request<Apartment>('/apartments', { method: 'POST', body: JSON.stringify({ typeKey, num, ...data }) }),
   getCategories: () => request<Categories>('/categories'),
+  updateCategory: (typeKey: string, patch: Record<string, unknown>) =>
+    request<Category>(`/categories/${typeKey}`, { method: 'PUT', body: JSON.stringify(patch) }),
   getReservations: () => request<ReservationRecord[]>('/reservations'),
   getVisits: () => request<ReservationRecord[]>('/visits'),
   getRecord: (code: string) => request<ReservationRecord>(`/records/${code}`),

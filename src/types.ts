@@ -198,12 +198,30 @@ export interface ApiErrorBody {
   missingFields?: string[];
 }
 
+// Un ambiente del modelo (sala, cocina, baño...) — compartido por TODAS las unidades de esa
+// categoría, nunca por apartamento individual (así ya funciona el sitio: "el recorrido 360°
+// mostrado es representativo del modelo"). img/thumb son URLs completas (Cloudinary) o, para
+// las fotos originales del sitio, una ruta relativa `media/...` — ver isSafeMediaUrl en
+// firebase.js, que es quien realmente valida esto server-side.
+export interface Room {
+  slug: string;
+  img: string;
+  thumb: string;
+  area: string; // texto libre, ej. "14 m² aprox."
+  name: BilingualText;
+  tag: BilingualText;
+  blurb: BilingualText;
+  features: BilingualText[];
+}
+
 // catLabel es el nombre real que ya usa el sitio público (index.html) — "Amoblado 1 Ambiente" /
 // "Amoblado 2 Ambientes" — nunca se inventa una traducción nueva de "estudio"/"dos" acá.
 export interface Category {
   catLabel: BilingualText;
   name: BilingualText;
+  shortName?: BilingualText;
   blurb?: BilingualText;
+  rooms?: Room[];
 }
 export type Categories = Record<string, Category>;
 

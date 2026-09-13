@@ -11,6 +11,7 @@ import { Login } from './pages/Login';
 const Dashboard = lazy(() => import('./pages/Dashboard').then((m) => ({ default: m.Dashboard })));
 const Analytics = lazy(() => import('./pages/Analytics').then((m) => ({ default: m.Analytics })));
 const Apartments = lazy(() => import('./pages/Apartments').then((m) => ({ default: m.Apartments })));
+const Categories = lazy(() => import('./pages/Categories').then((m) => ({ default: m.Categories })));
 const Reservations = lazy(() => import('./pages/Reservations').then((m) => ({ default: m.Reservations })));
 const ManualReservation = lazy(() => import('./pages/ManualReservation').then((m) => ({ default: m.ManualReservation })));
 const Payments = lazy(() => import('./pages/Payments').then((m) => ({ default: m.Payments })));
@@ -50,6 +51,7 @@ function Gate() {
             <Route index element={<Dashboard />} />
             <Route path="analiticas" element={<Analytics />} />
             <Route path="apartamentos" element={<Apartments />} />
+            <Route path="modelos" element={<Categories />} />
             <Route path="reservas" element={<Reservations />} />
             <Route path="reservas/nueva" element={<ManualReservation />} />
             <Route path="pagos" element={<Payments />} />

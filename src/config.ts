@@ -17,3 +17,18 @@ export const firebaseConfig = {
 // whatsapp-assistant/src/adminRoutes.js expone /admin/api/* protegido con un token real de
 // Firebase Auth (adminAuth.js), verificado del lado del servidor en cada request.
 export const API_BASE_URL = 'https://usoinmobiliario-whatsapp-bot.onrender.com/admin/api';
+
+// Las fotos originales del sitio (antes de que existiera este editor) se guardaron como rutas
+// relativas `media/...` — funcionan bien servidas DESDE el sitio público, pero acá en el panel
+// (otro dominio) esa misma ruta relativa resuelve contra localhost/este dominio y rompe. Ver
+// resolveMediaUrl en lib/media.ts — nunca se reescribe el dato, solo cómo se PREVISUALIZA acá.
+export const PUBLIC_SITE_BASE_URL = 'https://superethicalgames.github.io/usoinmobiliario-webdemo/';
+
+// Subida de fotos de apartamentos (sección "Modelos") va DIRECTO del navegador a Cloudinary,
+// nunca por el backend — el upload preset "unsigned" es, a propósito, la única forma de subir
+// sin exponer un secreto real: cualquiera con este nombre puede subir a la carpeta
+// `usoinmobiliario/` de esta cuenta (por eso el preset restringe carpeta/tamaño/formato desde
+// el dashboard de Cloudinary, no acá) — el archivo en sí nunca decide qué apartamento lo usa,
+// eso lo sigue controlando /admin/api/categories/:typeKey (solo-dueño, ver adminRoutes.js).
+export const CLOUDINARY_CLOUD_NAME = 'u8ftt8ip';
+export const CLOUDINARY_UPLOAD_PRESET = 'usoinmobiliario_unsigned';

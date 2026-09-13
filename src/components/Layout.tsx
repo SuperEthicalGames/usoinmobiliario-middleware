@@ -4,7 +4,7 @@ import { useAuth } from '../AuthContext';
 import logoIcon from '../assets/brand/logo-icon.webp';
 import { NotificationBell } from './NotificationBell';
 import {
-  BuildingIcon, CalendarIcon, CardIcon, ChartIcon, CloseIcon, DocumentIcon, GearIcon, GridIcon, HistoryIcon, LogoutIcon,
+  BuildingIcon, CalendarIcon, CardIcon, ChartIcon, CloseIcon, DocumentIcon, GearIcon, GridIcon, HistoryIcon, ImageIcon, LogoutIcon,
   MenuIcon, PinIcon, SparkleIcon, UsersIcon, WrenchIcon, type IconProps,
 } from './icons';
 
@@ -40,7 +40,7 @@ function SidebarContent({ onNavigate }: { onNavigate: () => void }) {
   const navItems: typeof STAFF_NAV_ITEMS = role === 'employee'
     ? EMPLOYEE_NAV_ITEMS
     : isSuperAdmin
-      ? [...STAFF_NAV_ITEMS, { to: '/usuarios', label: 'Usuarios', icon: UsersIcon }, { to: '/bitacora', label: 'Bitácora', icon: HistoryIcon }]
+      ? [...STAFF_NAV_ITEMS, { to: '/modelos', label: 'Modelos', icon: ImageIcon }, { to: '/usuarios', label: 'Usuarios', icon: UsersIcon }, { to: '/bitacora', label: 'Bitácora', icon: HistoryIcon }]
       : STAFF_NAV_ITEMS;
 
   return (
