@@ -14,6 +14,26 @@ const STATUS_OPTIONS: { value: OperationalStatus; label: string }[] = [
 
 // Formulario controlado con strings (inputs de texto/número) — se convierte a los tipos reales
 // recién al enviar, igual que el resto de formularios del panel (ver ManualReservation.tsx).
+//
+// Las tarifas eran 4 Field de texto separados por coma ("100000, 85000, 75000, 75000") — nada
+// que ver con cómo se ven en el sitio real (tabla 3 filas × 4 columnas, index.html:4150-4157).
+// Un RateRow es esa misma fila: una celda de texto por columna (1 noche / 2-6 noches / semanal
+// / mensual-por-noche), así la grilla de acá abajo es un <table> real, no CSV a ciegas — y de
+// paso se acaba un bug latente del formato CSV: una celda vacía en medio de la lista
+// (".map(Number)" contra un array ya filtrado) corría el resto de los valores una posición.
+type RateRow = [string, string, string, string];
+const RATE_COLS = ['1 noche', '2-6 noches', 'Semanal', 'Mensual/noche'] as const;
+function toRateRow(arr?: number[]): RateRow {
+  return [0, 1, 2, 3].map((i) => (arr && arr[i] != null ? String(arr[i]) : '')) as RateRow;
+}
+// undefined = fila nunca tocada (ninguna celda tiene valor) => no mandar esa tarifa, igual que
+// antes cuando el CSV completo venía vacío. Si al menos una celda tiene valor, las vacías se
+// mandan como 0 (tarifa "gratis" explícita) en vez de desalinear el array.
+function rateRowToArray(row: RateRow): number[] | undefined {
+  if (row.every((c) => c.trim() === '')) return undefined;
+  return row.map((c) => Number(c) || 0);
+}
+
 interface FormState {
   status: OperationalStatus;
   isVisible: boolean;
@@ -23,9 +43,9 @@ interface FormState {
   beds: string; // separado por comas en la UI, array en el modelo
   featureEs: string;
   featureEn: string;
-  rateOne: string; // "1noche,2-6,semanal,mensual" separado por comas
-  rateTwo: string;
-  rateExtra: string;
+  rateOne: RateRow;
+  rateTwo: RateRow;
+  rateExtra: RateRow;
   rateMonth: string;
   promo: boolean;
   flagship: boolean;
@@ -41,17 +61,13 @@ function toForm(apt: Apartment): FormState {
     beds: (apt.beds ?? []).join(', '),
     featureEs: apt.feature?.es ?? '',
     featureEn: apt.feature?.en ?? '',
-    rateOne: (apt.rates?.one ?? []).join(', '),
-    rateTwo: (apt.rates?.two ?? []).join(', '),
-    rateExtra: (apt.rates?.extra ?? []).join(', '),
+    rateOne: toRateRow(apt.rates?.one),
+    rateTwo: toRateRow(apt.rates?.two),
+    rateExtra: toRateRow(apt.rates?.extra),
     rateMonth: apt.rates?.month != null ? String(apt.rates.month) : '',
     promo: !!apt.promo,
     flagship: !!apt.flagship,
   };
-}
-
-function parseNumberList(s: string): number[] {
-  return s.split(',').map((x) => x.trim()).filter(Boolean).map(Number).filter((n) => !Number.isNaN(n));
 }
 
 function toPatch(f: FormState): Record<string, unknown> {
@@ -67,9 +83,9 @@ function toPatch(f: FormState): Record<string, unknown> {
     flagship: f.flagship,
   };
   const rates: Record<string, unknown> = {};
-  const one = parseNumberList(f.rateOne); if (one.length) rates.one = one;
-  const two = parseNumberList(f.rateTwo); if (two.length) rates.two = two;
-  const extra = parseNumberList(f.rateExtra); if (extra.length) rates.extra = extra;
+  const one = rateRowToArray(f.rateOne); if (one) rates.one = one;
+  const two = rateRowToArray(f.rateTwo); if (two) rates.two = two;
+  const extra = rateRowToArray(f.rateExtra); if (extra) rates.extra = extra;
   if (f.rateMonth.trim()) rates.month = Number(f.rateMonth);
   patch.rates = rates;
   return patch;
@@ -97,6 +113,13 @@ export function ApartmentEditor({ apartment, onClose, onSaved }: {
 
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
+  }
+  function setRateCell(row: 'rateOne' | 'rateTwo' | 'rateExtra', idx: number, value: string) {
+    setForm((prev) => {
+      const next = [...prev[row]] as RateRow;
+      next[idx] = value;
+      return { ...prev, [row]: next };
+    });
   }
 
   async function save() {
@@ -162,13 +185,40 @@ export function ApartmentEditor({ apartment, onClose, onSaved }: {
           </div>
 
           <div className="border-t border-line pt-4">
-            <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-muted">Tarifas (COP, separadas por coma: 1 noche, 2-6 noches, semanal)</h3>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <Field label="1 huésped" value={form.rateOne} onChange={(e) => set('rateOne', e.target.value)} placeholder="180000, 160000, 950000" />
-              <Field label="2+ huéspedes" value={form.rateTwo} onChange={(e) => set('rateTwo', e.target.value)} placeholder="220000, 200000, 1200000" />
-              <Field label="Huésped extra (por noche, por tramo)" value={form.rateExtra} onChange={(e) => set('rateExtra', e.target.value)} placeholder="30000, 25000" />
-              <Field label="Mensual" type="number" value={form.rateMonth} onChange={(e) => set('rateMonth', e.target.value)} />
+            <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-muted">Tarifas (COP)</h3>
+            <div className="overflow-x-auto rounded-xl border border-line">
+              <table className="w-full min-w-[480px] text-sm">
+                <thead>
+                  <tr className="bg-paper-2 text-left text-xs font-bold uppercase tracking-wide text-muted">
+                    <th className="px-3 py-2">Estadía</th>
+                    {RATE_COLS.map((c) => <th key={c} className="px-2 py-2 text-right">{c}</th>)}
+                  </tr>
+                </thead>
+                <tbody>
+                  {([
+                    ['1 huésped', 'rateOne', form.rateOne],
+                    ['2+ huéspedes', 'rateTwo', form.rateTwo],
+                    ['Huésped extra', 'rateExtra', form.rateExtra],
+                  ] as const).map(([label, key, row]) => (
+                    <tr key={key} className="border-t border-line">
+                      <td className="whitespace-nowrap px-2 py-1.5 font-semibold text-ink/80">{label}</td>
+                      {row.map((cell, i) => (
+                        <td key={i} className="px-1 py-1.5">
+                          <input
+                            type="number"
+                            value={cell}
+                            onChange={(e) => setRateCell(key, i, e.target.value)}
+                            className="w-full min-w-0 [appearance:textfield] rounded-lg border border-line bg-paper px-1.5 py-1.5 text-right text-[13px] outline-none transition focus:border-gold focus:ring-4 focus:ring-gold/15 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                          />
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
+            <p className="mt-1.5 text-xs text-muted">Deja una fila completamente vacía si esa estadía todavía no tiene tarifa publicada.</p>
+            <Field label="Mensual (valor total, el precio destacado en la tarjeta)" type="number" value={form.rateMonth} onChange={(e) => set('rateMonth', e.target.value)} className="mt-3 max-w-xs" />
           </div>
 
           <div className="flex gap-6 border-t border-line pt-4 text-sm">
