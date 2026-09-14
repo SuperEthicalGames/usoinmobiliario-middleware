@@ -39,6 +39,7 @@ function CreateContractForm({ apartments, categoryLabel, onCreated }: {
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [documentEmailSent, setDocumentEmailSent] = useState<boolean | null>(null);
 
   const selected = apartments.find((a) => a._key === selectedKey);
 
@@ -72,6 +73,7 @@ function CreateContractForm({ apartments, categoryLabel, onCreated }: {
         notes: notes || undefined,
       });
       onCreated(created);
+      setDocumentEmailSent(created.documentEmailSent);
       reset();
     } catch (err) {
       setError(describeApiError(err));
@@ -147,6 +149,13 @@ function CreateContractForm({ apartments, categoryLabel, onCreated }: {
         </div>
         <TextArea label="Notas (opcional)" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
         {error && <p className="rounded-xl bg-red/10 px-3.5 py-2.5 text-sm text-red-dark">{error}</p>}
+        {documentEmailSent != null && (
+          <p className={`rounded-xl px-3.5 py-2.5 text-sm ${documentEmailSent ? 'bg-emerald/10 text-emerald-dark' : 'bg-amber/10 text-amber-dark'}`}>
+            {documentEmailSent
+              ? 'Contrato creado — el documento en PDF se envió por correo al arrendatario.'
+              : 'Contrato creado, pero no se pudo enviar el correo con el documento (revisa que el arrendatario tenga correo registrado). Puedes descargarlo desde la lista de abajo.'}
+          </p>
+        )}
         <Button type="submit" disabled={submitting || !selected}>{submitting ? 'Creando...' : 'Crear contrato'}</Button>
       </form>
     </Card>
@@ -204,6 +213,7 @@ export function Contracts() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [registeringFor, setRegisteringFor] = useState<Contract | null>(null);
   const [downloadingReceipt, setDownloadingReceipt] = useState<number | null>(null);
+  const [downloadingDocument, setDownloadingDocument] = useState<string | null>(null);
 
   function load() {
     setLoading(true);
@@ -258,6 +268,18 @@ export function Contracts() {
     }
   }
 
+  async function handleDownloadDocument(code: string) {
+    setDownloadingDocument(code);
+    setActionError(null);
+    try {
+      await api.downloadContractDocument(code);
+    } catch (err) {
+      setActionError(describeApiError(err));
+    } finally {
+      setDownloadingDocument(null);
+    }
+  }
+
   return (
     <div>
       <PageHeader title="Contratos" subtitle="Arriendos formales de largo plazo, más allá de una reserva corta con HOLD." />
@@ -308,6 +330,9 @@ export function Contracts() {
                             Registrar abono
                           </Button>
                         )}
+                        <Button variant="ghost" disabled={downloadingDocument === c.code} onClick={() => handleDownloadDocument(c.code)} className="px-3 py-1.5 text-xs">
+                          {downloadingDocument === c.code ? '...' : 'Descargar contrato PDF'}
+                        </Button>
                         <Button variant="ghost" onClick={() => setExpanded((prev) => (prev === c.code ? null : c.code))} className="px-3 py-1.5 text-xs">
                           {expanded === c.code ? 'Ocultar abonos' : `Ver abonos (${c.payments.length})`}
                         </Button>

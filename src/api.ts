@@ -103,7 +103,7 @@ export const api = {
 
   getContracts: () => request<Contract[]>('/contracts'),
   createContract: (data: Omit<Contract, 'code' | 'status' | 'createdAt' | 'createdBy' | 'payments'>) =>
-    request<Contract>('/contracts', { method: 'POST', body: JSON.stringify(data) }),
+    request<Contract & { documentEmailSent: boolean }>('/contracts', { method: 'POST', body: JSON.stringify(data) }),
   setContractStatus: (code: string, status: ContractStatus) =>
     request<Contract>(`/contracts/${code}/status`, { method: 'POST', body: JSON.stringify({ status }) }),
   addContractPayment: (code: string, data: { lines: ContractPaymentLine[]; date: string }) =>
@@ -123,6 +123,24 @@ export const api = {
     const a = document.createElement('a');
     a.href = url;
     a.download = `recibo-${code}-${receiptNumber}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  },
+  // El documento del contrato en sí (no un abono) — mismo patrón de descarga que arriba.
+  downloadContractDocument: async (code: string): Promise<void> => {
+    const headers = await authHeader();
+    const res = await fetch(`${API_BASE_URL}/contracts/${code}/document/pdf`, { headers, cache: 'no-store' });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new ApiError(body as ApiErrorBody, res.status);
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `contrato-${code}.pdf`;
     document.body.appendChild(a);
     a.click();
     a.remove();
