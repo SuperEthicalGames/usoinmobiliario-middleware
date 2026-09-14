@@ -187,6 +187,11 @@ export interface DashboardSummary {
   activeHolds: number;
   pendingPaymentVerifications: number;
   upcomingVisits: ReservationRecord[];
+  apartmentsNeedingRealPhotos: number;
+  pendingCashPayments: number;
+  cleaningPending: number;
+  maintenanceOpen: number;
+  contractsExpiringSoon: number;
 }
 
 export interface PaymentInfo {

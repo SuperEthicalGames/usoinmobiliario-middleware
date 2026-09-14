@@ -8,7 +8,7 @@ import { AsyncSection, Card, PageHeader } from '../components/ui';
 // Etiquetas legibles para las acciones que fb.logAdminAction registra (ver adminRoutes.js) —
 // cualquier acción nueva que no esté acá simplemente se muestra tal cual (el string ya es
 // razonablemente legible, ej. "cleaning.set_status"), nunca se rompe por un mapeo faltante.
-const ACTION_LABELS: Record<string, string> = {
+export const ACTION_LABELS: Record<string, string> = {
   'reservation.create_manual': 'Creó una reserva manual',
   'reservation.check_in': 'Registró check-in',
   'reservation.check_out': 'Registró check-out',
@@ -49,7 +49,7 @@ const DOMAIN_FILTERS: { key: AuditDomain | 'todos'; label: string }[] = [
   { key: 'admin', label: 'Usuarios' },
 ];
 
-function fmtDateTime(ms: number): string {
+export function fmtDateTime(ms: number): string {
   return new Date(ms).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'medium' });
 }
 
