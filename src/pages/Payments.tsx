@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api, describeApiError } from '../api';
 import type { ReservationRecord } from '../types';
-import { AsyncSection, Card, ConfirmDialog, PageHeader, Button, fmtCOP, fmtDate } from '../components/ui';
+import { AsyncSection, Card, ConfirmDialog, PageHeader, Button, Select, fmtCOP, fmtDate } from '../components/ui';
+import { ChartCard, StatTile, TrendChart } from '../components/charts';
+import { monthKey, monthLabel, revenueByMonth, todayIsoBogota } from '../lib/analytics';
+import { downloadPaymentsReportPdf } from '../lib/paymentsPdf';
 
 // Mismo criterio de filtrado que PaymentService.GetPendingVerificationAsync/GetPendingCashAsync
 // en Unity: traer TODAS las reservas (ya lo hace /admin/api/reservations) y derivar las dos
@@ -14,6 +17,15 @@ import { AsyncSection, Card, ConfirmDialog, PageHeader, Button, fmtCOP, fmtDate 
 function isActive(r: ReservationRecord) { return r.status !== 'rechazada' && r.status !== 'cancelada'; }
 function isPendingVerification(r: ReservationRecord) { return r.type === 'reserva' && r.paymentStatus === 'submitted' && isActive(r); }
 function isPendingCash(r: ReservationRecord) { return r.type === 'reserva' && r.paymentMethod === 'cash' && r.paymentStatus === 'none' && isActive(r); }
+// Plata ya recibida de verdad (sección 4 del pedido nuevo: "no se ve información de los pagos
+// que se han recibido como tal") — el resto de esta pantalla es solo la cola de pendientes.
+function isReceived(r: ReservationRecord) { return r.type === 'reserva' && r.paymentStatus === 'verified'; }
+// El efectivo nunca trae paymentReport (ver registerCashPayment en firebase.js) — sin una
+// marca de tiempo propia de "cuándo se verificó", el check-in es la mejor fecha real disponible
+// para ubicar el pago en el tiempo (createdAt como último recurso si ni eso hay).
+function receivedDateOf(r: ReservationRecord): string { return r.paymentReport?.date ?? r.checkin ?? r.createdAt; }
+function receivedAmountOf(r: ReservationRecord): number { return r.paymentReport?.amount ?? r.estTotal ?? 0; }
+function receivedMethodLabel(r: ReservationRecord): string { return r.paymentReport ? 'Transferencia' : r.paymentMethod === 'cash' ? 'Efectivo' : '—'; }
 
 type Action = 'verify' | 'reject' | 'cash';
 interface PendingConfirm { r: ReservationRecord; action: Action; }
@@ -63,6 +75,7 @@ export function Payments() {
   const [busyCode, setBusyCode] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<PendingConfirm | null>(null);
+  const [monthFilter, setMonthFilter] = useState<'todos' | string>('todos');
 
   function load() {
     setLoading(true);
@@ -76,6 +89,24 @@ export function Payments() {
 
   const pendingVerification = useMemo(() => data?.filter(isPendingVerification) ?? [], [data]);
   const pendingCash = useMemo(() => data?.filter(isPendingCash) ?? [], [data]);
+
+  // Mismos cálculos que Analíticas (lib/analytics.ts), reusados acá para que un cobrador/dueño
+  // no tenga que ir a otra pantalla para ver cuánta plata ha entrado — mismos números, deben
+  // coincidir exactos para el mismo mes.
+  const revenue = useMemo(() => revenueByMonth(data ?? [], '6m'), [data]);
+  const currentMonthKey = useMemo(() => monthKey(todayIsoBogota()), []);
+  const currentMonthPoint = revenue.find((p) => p.key === currentMonthKey) ?? revenue[revenue.length - 1];
+
+  const received = useMemo(
+    () => (data?.filter(isReceived) ?? []).sort((a, b) => receivedDateOf(b).localeCompare(receivedDateOf(a))),
+    [data],
+  );
+  const receivedMonths = useMemo(() => [...new Set(received.map((r) => monthKey(receivedDateOf(r))))].sort().reverse(), [received]);
+  const filteredReceived = useMemo(
+    () => (monthFilter === 'todos' ? received : received.filter((r) => monthKey(receivedDateOf(r)) === monthFilter)),
+    [received, monthFilter],
+  );
+  const scopeLabel = monthFilter === 'todos' ? 'Todos los meses' : monthLabel(monthFilter);
 
   async function commit() {
     if (!confirming) return;
@@ -105,6 +136,78 @@ export function Payments() {
       <AsyncSection loading={loading} error={error} data={data} onRetry={load}>
         {() => (
           <div className="space-y-8">
+            <div>
+              <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-muted">Resumen de ingresos</h2>
+              <div className="mb-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
+                <StatTile
+                  label="Verificado este mes"
+                  value={fmtCOP(currentMonthPoint?.verified ?? 0)}
+                  hint={monthLabel(currentMonthKey)}
+                  trend={revenue.map((p) => p.verified)}
+                  trendColor="var(--color-emerald)"
+                />
+                <StatTile
+                  label="Por verificar este mes"
+                  value={fmtCOP(currentMonthPoint?.pending ?? 0)}
+                  hint="Reportado, esperando verificación"
+                  trend={revenue.map((p) => p.pending)}
+                  trendColor="var(--color-amber)"
+                />
+                <StatTile label="Transferencias por verificar" value={String(pendingVerification.length)} hint="Ver abajo" />
+                <StatTile label="Efectivo por registrar" value={String(pendingCash.length)} hint="Ver abajo" />
+              </div>
+              <ChartCard title="Ingresos verificados por mes" subtitle="Últimos 6 meses, atribuidos al mes de check-in">
+                <TrendChart points={revenue.map((p) => ({ key: p.key, label: p.label, value: p.verified }))} formatValue={fmtCOP} color="var(--color-emerald)" />
+              </ChartCard>
+            </div>
+
+            <div>
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                <h2 className="text-sm font-bold uppercase tracking-wide text-muted">Pagos recibidos ({filteredReceived.length})</h2>
+                <div className="flex flex-wrap items-center gap-3">
+                  <Select label="Mes" value={monthFilter} onChange={(e) => setMonthFilter(e.target.value)} className="w-44">
+                    <option value="todos">Todos los meses</option>
+                    {receivedMonths.map((m) => <option key={m} value={m}>{monthLabel(m)}</option>)}
+                  </Select>
+                  <Button variant="ghost" onClick={() => downloadPaymentsReportPdf(revenue, filteredReceived, scopeLabel)}>
+                    Descargar reporte PDF
+                  </Button>
+                </div>
+              </div>
+              <Card className="overflow-hidden">
+                {filteredReceived.length === 0 ? (
+                  <p className="p-5 text-sm text-muted">No hay pagos recibidos con este filtro.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-line text-left text-xs uppercase tracking-wide text-muted">
+                          <th className="px-4 py-3">Código</th>
+                          <th className="px-4 py-3">Unidad</th>
+                          <th className="px-4 py-3">Cliente</th>
+                          <th className="px-4 py-3">Método</th>
+                          <th className="px-4 py-3">Monto</th>
+                          <th className="px-4 py-3">Fecha</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredReceived.map((r) => (
+                          <tr key={r.code} className="border-b border-line last:border-0">
+                            <td className="px-4 py-3 font-bold text-ink">{r.code}</td>
+                            <td className="px-4 py-3">{r.unitLabel}</td>
+                            <td className="px-4 py-3 text-ink/70">{r.name}</td>
+                            <td className="px-4 py-3 text-ink/70">{receivedMethodLabel(r)}</td>
+                            <td className="px-4 py-3 font-bold text-emerald-dark">{fmtCOP(receivedAmountOf(r))}</td>
+                            <td className="px-4 py-3 text-ink/70">{fmtDate(receivedDateOf(r))}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </Card>
+            </div>
+
             <div>
               <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-muted">
                 Transferencias por verificar ({pendingVerification.length})

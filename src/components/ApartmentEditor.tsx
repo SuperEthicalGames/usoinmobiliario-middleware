@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
-import type { Apartment, OperationalStatus, Room } from '../types';
+import type { Apartment, OperationalStatus, ReservationRecord, Room } from '../types';
 import { api, describeApiError } from '../api';
 import { uploadImage, CloudinaryUploadError } from '../lib/cloudinary';
 import { Button, ConfirmDialog, Field, Select } from './ui';
 import { RoomsEditor } from './RoomsEditor';
-import { CloseIcon } from './icons';
+import { CloseIcon, AlertIcon } from './icons';
 
 // Mismo patrón de panel deslizante que RecordDetail.tsx — un solo lenguaje visual para "abrir
 // el detalle de algo" en todo el panel.
@@ -102,8 +102,25 @@ function toPatch(f: FormState): Record<string, unknown> {
   return patch;
 }
 
-export function ApartmentEditor({ apartment, onClose, onSaved }: {
+// Chequeo estricto (solo 'confirmada', a diferencia de relevantStayFor en Apartments.tsx que
+// también cuenta HOLDs vigentes) — acá el punto es advertir cuando un admin pone el estado a
+// mano SIN que la lógica real de reservas lo respalde todavía, así que un HOLD sin confirmar no
+// cuenta como respaldo.
+function hasConfirmedStayToday(apt: Apartment, reservations: ReservationRecord[], today: string): boolean {
+  return reservations.some((r) =>
+    r.type === 'reserva' && r.status === 'confirmada' && r.unitType === apt.typeKey && r.unitNum === apt.num
+    && !!r.checkin && !!r.checkout && r.checkin <= today && today < r.checkout);
+}
+function hasFutureConfirmedBooking(apt: Apartment, reservations: ReservationRecord[], today: string): boolean {
+  return reservations.some((r) =>
+    r.type === 'reserva' && r.status === 'confirmada' && r.unitType === apt.typeKey && r.unitNum === apt.num
+    && !!r.checkin && r.checkin > today);
+}
+
+export function ApartmentEditor({ apartment, reservations, today, onClose, onSaved }: {
   apartment: Apartment;
+  reservations: ReservationRecord[];
+  today: string;
   onClose: () => void;
   onSaved: (updated: Apartment) => void;
 }) {
@@ -210,8 +227,20 @@ export function ApartmentEditor({ apartment, onClose, onSaved }: {
             </label>
           </div>
           <p className="-mt-2 text-xs text-muted">
-            El estado operativo se recalcula solo contra reservas reales cuando corresponde (ver la tarjeta en Apartamentos) — este campo manual solo importa cuando no hay ninguna reserva activa que lo anule.
+            Cuando hay una reserva confirmada real, el estado se ajusta solo (check-in, check-out, cancelación). Usa este selector para los demás casos, como bloquear una unidad en mantenimiento — el valor que pongas acá se toma igual de real.
           </p>
+          {form.status === 'en-uso' && !hasConfirmedStayToday(apartment, reservations, today) && (
+            <div className="flex items-start gap-1.5 rounded-lg bg-amber/10 px-2.5 py-1.5 text-xs text-amber-dark">
+              <AlertIcon className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              No hay ninguna reserva confirmada activa hoy para esta unidad — confirma que de verdad corresponde ponerla "En uso" (ej. check-in puntual antes de la hora permitida, o un uso fuera del flujo de reservas).
+            </div>
+          )}
+          {form.status === 'reservado' && !hasFutureConfirmedBooking(apartment, reservations, today) && (
+            <div className="flex items-start gap-1.5 rounded-lg bg-amber/10 px-2.5 py-1.5 text-xs text-amber-dark">
+              <AlertIcon className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              No hay ninguna reserva confirmada a futuro para esta unidad — confirma que de verdad corresponde ponerla "Reservado".
+            </div>
+          )}
 
           <div className="grid grid-cols-3 gap-3">
             <Field label="Área (m²)" type="number" value={form.area} onChange={(e) => set('area', e.target.value)} />

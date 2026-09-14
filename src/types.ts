@@ -121,21 +121,54 @@ export interface ReservationRecord {
 }
 
 export type ContractStatus = 'activo' | 'finalizado' | 'cancelado';
+export type PaymentTerm = 'semanal' | 'quincenal' | 'mensual';
+export type ContractPaymentMethod = 'transferencia' | 'efectivo' | 'otro';
+
+export interface ContractTenant {
+  name: string;
+  documentId: string;
+  phone?: string;
+  email?: string;
+}
+export interface ContractJointDebtor {
+  name: string;
+  documentId: string;
+}
+// Un abono NO se limita a transferencia/efectivo — puede incluir una comisión del programa de
+// referidos ("invita y gana") o cualquier otro acuerdo con el dueño (ej. algo vendido que se
+// abonó como pago de arriendo), por eso 'otro' con descripción libre. Mismo patrón que ya usa el
+// recibo real: dos líneas (transferencia + efectivo) dentro de un mismo abono.
+export interface ContractPaymentLine {
+  method: ContractPaymentMethod;
+  amount: number;
+  description?: string;
+}
+export interface ContractPayment {
+  receiptNumber: number;
+  date: string;
+  periodStart: string;
+  periodEnd: string;
+  lines: ContractPaymentLine[];
+  balanceAfter: number;
+}
 export interface Contract {
   code: string;
   unitType: string;
   unitNum: string;
   unitLabel: string;
-  tenantName: string;
-  tenantPhone?: string;
-  tenantEmail?: string;
+  roomCode: string;
+  tenants: ContractTenant[];
+  jointDebtor?: ContractJointDebtor;
+  maxOccupancy: number;
   startDate: string;
   endDate: string;
   monthlyRent: number;
+  paymentTerm: PaymentTerm;
   depositAmount?: number;
   documentUrl?: string;
   notes?: string;
   status: ContractStatus;
+  payments: ContractPayment[];
   createdAt: string;
   createdBy?: string;
 }

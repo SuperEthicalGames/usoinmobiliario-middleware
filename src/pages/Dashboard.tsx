@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, describeApiError } from '../api';
-import type { AuditLogEntry, DashboardSummary } from '../types';
+import type { AuditLogEntry, DashboardSummary, ReservationRecord } from '../types';
 import { useAuth } from '../AuthContext';
 import { AsyncSection, Card, PageHeader, Button, fmtDate } from '../components/ui';
 import { StatusBadge } from '../components/StatusBadge';
 import { RefreshIcon } from '../components/icons';
+import { RecordDetail } from '../components/RecordDetail';
 import { ACTION_LABELS, fmtDateTime } from './AuditLog';
 
 // Cada tarjeta explica en una línea qué significa el número — la queja de que "el dashboard no
@@ -50,6 +51,7 @@ export function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [secondsAgo, setSecondsAgo] = useState(0);
+  const [selectedVisit, setSelectedVisit] = useState<ReservationRecord | null>(null);
   const loadingRef = useRef(false);
 
   // loadingRef (no solo el estado `loading`) evita que el refresco automático y uno manual se
@@ -95,6 +97,22 @@ export function Dashboard() {
     const tick = setInterval(() => setSecondsAgo(Math.floor((Date.now() - lastUpdated.getTime()) / 1000)), 1000);
     return () => clearInterval(tick);
   }, [lastUpdated]);
+
+  // Igual que Visits.tsx: actualiza la fila en su lugar — salvo que el nuevo estado ya no
+  // califique como "próxima" (el texto de la sección dice explícitamente que rechazadas/
+  // canceladas/completadas no aparecen acá), en cuyo caso desaparece de la lista sin esperar
+  // al próximo refresco automático de 30s.
+  function handleVisitUpdated(updated: ReservationRecord) {
+    setData((prev) => {
+      if (!prev) return prev;
+      const stillUpcoming = updated.status === 'pendiente' || updated.status === 'confirmada';
+      const upcomingVisits = stillUpcoming
+        ? prev.upcomingVisits.map((v) => (v.code === updated.code ? updated : v))
+        : prev.upcomingVisits.filter((v) => v.code !== updated.code);
+      return { ...prev, upcomingVisits };
+    });
+    setSelectedVisit(updated);
+  }
 
   return (
     <div>
@@ -148,11 +166,15 @@ export function Dashboard() {
             </div>
             <div>
               <SectionLabel>Próximas visitas</SectionLabel>
-              <p className="-mt-2 mb-3 text-xs text-muted/80">Confirmadas y pendientes de confirmar, de hoy en adelante — rechazadas/canceladas/completadas no aparecen acá.</p>
+              <p className="-mt-2 mb-3 text-xs text-muted/80">Confirmadas y pendientes de confirmar, de hoy en adelante — rechazadas/canceladas/completadas no aparecen acá. Toca una fila para gestionarla.</p>
               <Card className="divide-y divide-line">
                 {summary.upcomingVisits.length === 0 && <p className="p-5 text-sm text-muted">No hay visitas próximas.</p>}
                 {summary.upcomingVisits.map((v) => (
-                  <div key={v.code} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-5 py-3.5">
+                  <button
+                    key={v.code}
+                    onClick={() => setSelectedVisit(v)}
+                    className="flex w-full flex-wrap items-center justify-between gap-x-4 gap-y-1 px-5 py-3.5 text-left transition hover:bg-paper-2"
+                  >
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-bold text-ink">{v.unitLabel}</span>
@@ -164,7 +186,7 @@ export function Dashboard() {
                       <div>{fmtDate(v.visitDate)}</div>
                       <div className="text-xs text-muted">{v.visitTime}</div>
                     </div>
-                  </div>
+                  </button>
                 ))}
               </Card>
             </div>
@@ -191,6 +213,7 @@ export function Dashboard() {
           </div>
         )}
       </AsyncSection>
+      {selectedVisit && <RecordDetail record={selectedVisit} onClose={() => setSelectedVisit(null)} onUpdated={handleVisitUpdated} />}
     </div>
   );
 }

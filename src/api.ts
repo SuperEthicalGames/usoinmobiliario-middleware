@@ -2,8 +2,8 @@ import { auth } from './firebase';
 import { API_BASE_URL } from './config';
 import type {
   Apartment, ReservationRecord, DashboardSummary, PaymentInfo, RecordAction, ManualReservationInput, ApiErrorBody,
-  Categories, MeInfo, AdminUser, Role, EmployeeOption, Contract, ContractStatus, CleaningTask, CleaningStatus,
-  MaintenanceTicket, MaintenanceStatus, SiteTrafficDay, AuditLogEntry, Notification,
+  Categories, MeInfo, AdminUser, Role, EmployeeOption, Contract, ContractStatus, ContractPayment, ContractPaymentLine,
+  CleaningTask, CleaningStatus, MaintenanceTicket, MaintenanceStatus, SiteTrafficDay, AuditLogEntry, Notification,
 } from './types';
 
 export class ApiError extends Error {
@@ -102,10 +102,32 @@ export const api = {
   checkOut: (code: string) => request<ReservationRecord>(`/records/${code}/check-out`, { method: 'POST' }),
 
   getContracts: () => request<Contract[]>('/contracts'),
-  createContract: (data: Omit<Contract, 'code' | 'status' | 'createdAt' | 'createdBy'>) =>
+  createContract: (data: Omit<Contract, 'code' | 'status' | 'createdAt' | 'createdBy' | 'payments'>) =>
     request<Contract>('/contracts', { method: 'POST', body: JSON.stringify(data) }),
   setContractStatus: (code: string, status: ContractStatus) =>
     request<Contract>(`/contracts/${code}/status`, { method: 'POST', body: JSON.stringify({ status }) }),
+  addContractPayment: (code: string, data: { lines: ContractPaymentLine[]; date: string }) =>
+    request<{ contract: Contract; payment: ContractPayment; emailSent: boolean }>(`/contracts/${code}/payments`, { method: 'POST', body: JSON.stringify(data) }),
+  // Blob, no JSON — no puede pasar por request<T>() (que siempre espera .json()). Mismo patrón
+  // de auth que el resto (token fresco en cada llamada), pero descarga directa: crea un <a> con
+  // blob: URL y lo clickea solo, porque un <a href> plano no puede llevar el header Authorization.
+  downloadContractReceipt: async (code: string, receiptNumber: number): Promise<void> => {
+    const headers = await authHeader();
+    const res = await fetch(`${API_BASE_URL}/contracts/${code}/payments/${receiptNumber}/pdf`, { headers, cache: 'no-store' });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new ApiError(body as ApiErrorBody, res.status);
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `recibo-${code}-${receiptNumber}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  },
 
   getCleaningTasks: () => request<CleaningTask[]>('/cleaning'),
   createCleaningTask: (data: Omit<CleaningTask, 'code' | 'status' | 'createdAt' | 'completedAt'>) =>
@@ -141,7 +163,8 @@ export const API_ERROR_MESSAGES: Record<string, string> = {
   'already-checked-in': 'Esta reserva ya tiene un check-in registrado.',
   'not-checked-in-yet': 'Primero hay que registrar el check-in antes del check-out.',
   'already-checked-out': 'Esta reserva ya tiene un check-out registrado.',
-  'checkin-too-early': 'Todavía no es el día de check-in de esta reserva.',
+  'checkin-too-early': 'Todavía no se puede — o falta el día de check-in, o ya es el día pero aún no son las 3:00 p.m. (hora de check-in).',
+  'contract-not-active': 'Este contrato ya no está activo — no se pueden registrar más abonos.',
 };
 export function describeApiError(err: unknown): string {
   if (err instanceof ApiError) return API_ERROR_MESSAGES[err.code] ?? `Ocurrió un error (${err.code}).`;

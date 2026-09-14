@@ -11,6 +11,13 @@ import { CloseIcon, ExternalLinkIcon } from './icons';
 function todayIsoLocal(): string {
   return new Date().toISOString().slice(0, 10);
 }
+// Mismo offset fijo (UTC-5, sin horario de verano) que dateUtil.js del backend — solo para
+// decidir si MOSTRAR el botón deshabilitado antes de las 3:00 p.m. del día de check-in (la hora
+// que anuncia el sitio público); el backend es quien de verdad manda (checkInReservation).
+function nowHourBogota(): number {
+  const nowBogota = new Date(Date.now() - 5 * 60 * 60 * 1000);
+  return nowBogota.getUTCHours() + nowBogota.getUTCMinutes() / 60;
+}
 
 // Reservas y citas comparten la misma máquina de estados (confirm/reject/cancel/complete) —
 // mismo criterio que setReservationStatus en el backend, un solo componente para las dos.
@@ -59,7 +66,9 @@ export function RecordDetail({ record, onClose, onUpdated }: {
   const [confirming, setConfirming] = useState<PendingConfirm | null>(null);
   const isVisit = record.type === 'cita';
   const canTrackStay = !isVisit && record.status === 'confirmada';
-  const checkinTooEarly = !isVisit && !!record.checkin && todayIsoLocal() < record.checkin;
+  const isCheckinDay = record.checkin === todayIsoLocal();
+  const checkinTooEarly = !isVisit && !!record.checkin
+    && (todayIsoLocal() < record.checkin || (isCheckinDay && nowHourBogota() < 15));
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => setShow(true));
@@ -189,14 +198,20 @@ export function RecordDetail({ record, onClose, onUpdated }: {
               <Button
                 className="mt-2"
                 disabled={!!busy || checkinTooEarly}
-                title={checkinTooEarly ? `Todavía no es el día de check-in (es el ${fmtDate(record.checkin)}).` : undefined}
+                title={checkinTooEarly
+                  ? (isCheckinDay
+                    ? 'Todavía no son las 3:00 p.m. (hora de check-in) del día de check-in.'
+                    : `Todavía no es el día de check-in (es el ${fmtDate(record.checkin)}).`)
+                  : undefined}
                 onClick={() => setConfirming({ kind: 'check', check: 'check-in' })}
               >
                 {busy === 'check-in' ? '...' : 'Registrar check-in'}
               </Button>
             )}
             {checkinTooEarly && !record.actualCheckinAt && (
-              <p className="mt-1.5 text-xs text-muted">Disponible a partir del {fmtDate(record.checkin)}.</p>
+              <p className="mt-1.5 text-xs text-muted">
+                {isCheckinDay ? 'Disponible hoy a partir de las 3:00 p.m.' : `Disponible a partir del ${fmtDate(record.checkin)}.`}
+              </p>
             )}
             {record.actualCheckinAt && !record.actualCheckoutAt && (
               <Button className="mt-2" disabled={!!busy} onClick={() => setConfirming({ kind: 'check', check: 'check-out' })}>

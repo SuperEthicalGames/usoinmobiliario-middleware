@@ -4,7 +4,7 @@ import type { Apartment, Categories, OperationalStatus, ReservationRecord } from
 import { useAuth } from '../AuthContext';
 import { AsyncSection, Button, Card, Field, PageHeader, Select, fmtCOP, fmtDate } from '../components/ui';
 import { OperationalStatusBadge } from '../components/StatusBadge';
-import { AlertIcon, CalendarIcon } from '../components/icons';
+import { CalendarIcon } from '../components/icons';
 import { RecordDetail } from '../components/RecordDetail';
 import { ApartmentEditor } from '../components/ApartmentEditor';
 import { todayIsoBogota } from '../lib/analytics';
@@ -263,18 +263,9 @@ export function Apartments() {
                     </button>
                   ) : effective !== 'disponible' ? (
                     <div className="mt-3 rounded-xl border border-dashed border-line px-3 py-2.5 text-xs text-muted">
-                      Sin reserva ni solicitud pendiente asociada — el estado viene del campo manual en Firebase.
+                      Sin reserva ni solicitud pendiente asociada — este estado fue puesto directamente para la unidad.
                     </div>
                   ) : null}
-                  {apt.status !== effective && (
-                    <div
-                      className="mt-3 flex items-start gap-1.5 rounded-lg bg-amber/10 px-2.5 py-1.5 text-xs text-amber-dark"
-                      title="El campo manual en Firebase dice algo distinto, pero hay una reserva confirmada que manda sobre él"
-                    >
-                      <AlertIcon className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                      Campo manual dice "{apt.status}" — mostrando el real
-                    </div>
-                  )}
                 </Card>
               );
             })}
@@ -283,7 +274,15 @@ export function Apartments() {
       </AsyncSection>
 
       {selected && <RecordDetail record={selected} onClose={() => setSelected(null)} onUpdated={handleUpdated} />}
-      {editing && <ApartmentEditor apartment={editing} onClose={() => setEditing(null)} onSaved={handleApartmentSaved} />}
+      {editing && (
+        <ApartmentEditor
+          apartment={editing}
+          reservations={reservations}
+          today={today}
+          onClose={() => setEditing(null)}
+          onSaved={handleApartmentSaved}
+        />
+      )}
     </div>
   );
 }
