@@ -2,10 +2,13 @@ import { useEffect, useRef, useState } from 'react';
 import { api } from '../api';
 import type { Notification } from '../types';
 import { BellIcon } from './icons';
+import { isPushSupported, isSubscribed, subscribeToPush } from '../lib/push';
 
 // Sondeo simple (sin WebSocket/SSE — no vale la pena la complejidad para el volumen real de un
 // solo negocio pequeño) cada 60s, generoso igual que el resto de límites del proyecto para un
-// panel con un puñado de cuentas activas a la vez.
+// panel con un puñado de cuentas activas a la vez. Las notificaciones EN TIEMPO REAL de verdad
+// (con el navegador cerrado) salen por push (ver lib/push.ts) — esto es solo lo que se ve
+// dentro del panel cuando está abierto.
 const POLL_MS = 60000;
 
 function timeAgo(iso: string): string {
@@ -16,6 +19,54 @@ function timeAgo(iso: string): string {
   const hr = Math.floor(min / 60);
   if (hr < 24) return `hace ${hr} h`;
   return `hace ${Math.floor(hr / 24)} d`;
+}
+
+// Fila de activación — pedido explícito: "pedirle al usuario que encienda las notificaciones
+// de su navegador". Vive DENTRO del panel de notificaciones en vez de un popup aparte, porque
+// es exactamente donde alguien ya está mirando cuando le importa este tema. Se oculta sola en
+// cuanto ya está suscrito o el navegador no soporta push (Safari de escritorio, o iOS sin
+// "Agregado a inicio") — nunca ofrece un botón que va a fallar.
+function PushOptIn() {
+  const [status, setStatus] = useState<'checking' | 'hidden' | 'offer' | 'denied' | 'subscribing' | 'subscribed' | 'error'>('checking');
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isPushSupported()) { setStatus('hidden'); return; }
+    if (typeof Notification !== 'undefined' && Notification.permission === 'denied') { setStatus('denied'); return; }
+    isSubscribed().then((sub) => setStatus(sub ? 'subscribed' : 'offer'));
+  }, []);
+
+  async function activate() {
+    setStatus('subscribing');
+    setError(null);
+    const failure = await subscribeToPush();
+    if (failure) { setError(failure); setStatus('error'); return; }
+    setStatus('subscribed');
+  }
+
+  if (status === 'checking' || status === 'hidden' || status === 'subscribed') return null;
+
+  return (
+    <div className="border-b border-line bg-gold/10 px-4 py-3">
+      {status === 'denied' ? (
+        <p className="text-xs text-muted">
+          Las notificaciones están bloqueadas para este sitio en tu navegador — actívalas desde la configuración del navegador (el candado junto a la dirección) si quieres recibirlas aunque el panel esté cerrado.
+        </p>
+      ) : (
+        <>
+          <p className="text-xs text-ink/80">Recibe estas notificaciones en tu dispositivo aunque el panel esté cerrado.</p>
+          <button
+            onClick={activate}
+            disabled={status === 'subscribing'}
+            className="mt-2 rounded-full bg-gold px-3.5 py-1.5 text-xs font-bold text-ink transition hover:bg-gold-light disabled:opacity-60"
+          >
+            {status === 'subscribing' ? 'Activando...' : 'Activar notificaciones'}
+          </button>
+          {status === 'error' && error && <p className="mt-1.5 text-xs text-red-dark">{error}</p>}
+        </>
+      )}
+    </div>
+  );
 }
 
 export function NotificationBell() {
@@ -62,7 +113,7 @@ export function NotificationBell() {
       <button
         onClick={() => setOpen((v) => !v)}
         aria-label="Notificaciones"
-        className="relative rounded-lg p-2 text-graphite-400 transition hover:bg-white/5 hover:text-white"
+        className="relative rounded-lg p-2 text-ink/70 transition hover:bg-paper-2 hover:text-ink"
       >
         <BellIcon className="h-5 w-5" />
         {unreadCount > 0 && (
@@ -73,17 +124,18 @@ export function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full z-50 mt-2 w-80 max-w-[90vw] rounded-xl border border-line bg-card shadow-xl">
+        <div className="absolute right-0 top-full z-50 mt-2 w-[26rem] max-w-[92vw] rounded-xl border border-line bg-card shadow-xl">
           <div className="border-b border-line px-4 py-3 text-xs font-bold uppercase tracking-wide text-muted">
             Notificaciones
           </div>
-          <div className="max-h-96 overflow-y-auto">
+          <PushOptIn />
+          <div className="max-h-[28rem] overflow-y-auto">
             {items.length === 0 && <p className="px-4 py-6 text-center text-sm text-muted">Sin notificaciones.</p>}
             {items.map((n) => (
               <button
                 key={n.id}
                 onClick={() => markRead(n)}
-                className={`flex w-full flex-col gap-1 border-b border-line px-4 py-3 text-left text-sm transition last:border-0 hover:bg-paper-2 ${
+                className={`flex w-full flex-col gap-1 border-b border-line px-4 py-3.5 text-left text-sm transition last:border-0 hover:bg-paper-2 ${
                   n.read ? 'opacity-60' : ''
                 }`}
               >

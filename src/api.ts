@@ -91,6 +91,11 @@ export const api = {
   getNotifications: (limit = 50) => request<Notification[]>(`/notifications?limit=${limit}`),
   markNotificationRead: (id: string) => request<{ ok: true }>(`/notifications/${id}/read`, { method: 'POST' }),
 
+  pushSubscribe: (subscription: PushSubscriptionJSON) =>
+    request<{ ok: true }>('/push/subscribe', { method: 'POST', body: JSON.stringify(subscription) }),
+  pushUnsubscribe: (endpoint: string) =>
+    request<{ ok: true }>('/push/unsubscribe', { method: 'POST', body: JSON.stringify({ endpoint }) }),
+
   getEmployees: () => request<EmployeeOption[]>('/employees'),
 
   checkIn: (code: string) => request<ReservationRecord>(`/records/${code}/check-in`, { method: 'POST' }),

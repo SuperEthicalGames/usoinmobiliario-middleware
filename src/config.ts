@@ -32,3 +32,11 @@ export const PUBLIC_SITE_BASE_URL = 'https://superethicalgames.github.io/usoinmo
 // eso lo sigue controlando /admin/api/categories/:typeKey (solo-dueño, ver adminRoutes.js).
 export const CLOUDINARY_CLOUD_NAME = 'u8ftt8ip';
 export const CLOUDINARY_UPLOAD_PRESET = 'usoinmobiliario_unsigned';
+
+// Notificaciones push del sistema operativo (2026-09-14) — Web Push estándar (Push API +
+// Service Worker + VAPID), no un servicio de terceros. La llave pública NUNCA es secreta (va
+// firmada en cada suscripción, pero no permite mandar push por su cuenta — para eso hace falta
+// la privada, que se queda solo en el backend) — mismo criterio que el apiKey de Firebase ya
+// embebido arriba. Tiene que coincidir EXACTAMENTE con VAPID_PUBLIC_KEY del backend (ver
+// whatsapp-assistant/config/index.js) o el navegador rechaza la suscripción.
+export const VAPID_PUBLIC_KEY = 'BErcl8a1nCnM9htI2hq3Bt_yIpEuY0soWbDjxZDIuUTqT02NaATCTRweExI8J5fQFo2MJEpDOhgmcy7VYw1bFlY';
