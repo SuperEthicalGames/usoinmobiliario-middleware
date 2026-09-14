@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import type { Apartment, OperationalStatus, Room } from '../types';
 import { api, describeApiError } from '../api';
 import { uploadImage, CloudinaryUploadError } from '../lib/cloudinary';
-import { Button, Field, Select } from './ui';
+import { Button, ConfirmDialog, Field, Select } from './ui';
 import { RoomsEditor } from './RoomsEditor';
 import { CloseIcon } from './icons';
 
@@ -112,6 +112,7 @@ export function ApartmentEditor({ apartment, onClose, onSaved }: {
   const [error, setError] = useState<string | null>(null);
   const [show, setShow] = useState(false);
   const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
+  const [confirming, setConfirming] = useState(false);
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => setShow(true));
@@ -151,12 +152,17 @@ export function ApartmentEditor({ apartment, onClose, onSaved }: {
     }
   }
 
-  async function save() {
+  function requestSave() {
     const missingPhoto = form.rooms.findIndex((r) => !r.img || !r.thumb);
     if (missingPhoto !== -1) {
       setError(`El ambiente #${missingPhoto + 1} (${form.rooms[missingPhoto].name.es || 'sin nombre'}) todavía no tiene foto.`);
       return;
     }
+    setError(null);
+    setConfirming(true);
+  }
+
+  async function commitSave() {
     setSaving(true);
     setError(null);
     try {
@@ -167,6 +173,7 @@ export function ApartmentEditor({ apartment, onClose, onSaved }: {
       setError(describeApiError(err));
     } finally {
       setSaving(false);
+      setConfirming(false);
     }
   }
 
@@ -282,10 +289,21 @@ export function ApartmentEditor({ apartment, onClose, onSaved }: {
 
           <div className="flex justify-end gap-2 border-t border-line pt-4">
             <Button variant="ghost" onClick={onClose}>Cancelar</Button>
-            <Button disabled={saving || uploadingIndex !== null} onClick={save}>{saving ? 'Guardando...' : 'Guardar cambios'}</Button>
+            <Button disabled={saving || uploadingIndex !== null} onClick={requestSave}>{saving ? 'Guardando...' : 'Guardar cambios'}</Button>
           </div>
         </div>
       </div>
+
+      {confirming && (
+        <ConfirmDialog
+          title={`¿Guardar los cambios en Apartamento H${apartment.num}?`}
+          description="Esto actualiza de inmediato lo que ven los clientes en el catálogo público — precio, disponibilidad, fotos y descripciones."
+          confirmLabel="Sí, guardar"
+          busy={saving}
+          onCancel={() => setConfirming(false)}
+          onConfirm={commitSave}
+        />
+      )}
     </div>
   );
 }

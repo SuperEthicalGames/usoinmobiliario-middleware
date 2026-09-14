@@ -3,7 +3,7 @@ import { Navigate } from 'react-router-dom';
 import { api, ApiError, describeApiError } from '../api';
 import type { AdminUser } from '../types';
 import { useAuth } from '../AuthContext';
-import { AsyncSection, Button, Card, Field, PageHeader, Select } from '../components/ui';
+import { AsyncSection, Button, Card, Field, Select } from '../components/ui';
 import { AdminStatusBadge, RoleBadge } from '../components/StatusBadge';
 
 function fmtDateTime(iso: string | null): string {
@@ -115,7 +115,7 @@ export function Users() {
 
   return (
     <div>
-      <PageHeader title="Usuarios" subtitle="Solo tú (el dueño) puedes ver esta pantalla, crear cuentas, cambiar su rol o revocar acceso." />
+      <p className="mb-5 text-sm text-muted">Solo tú (el dueño) puedes ver esta pestaña, crear cuentas, cambiar su rol o revocar acceso.</p>
       <div className="space-y-6">
         <CreateUserForm onCreated={(a) => setData((prev) => (prev ? [...prev, a] : [a]))} />
 

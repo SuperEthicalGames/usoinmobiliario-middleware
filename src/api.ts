@@ -136,6 +136,7 @@ export const API_ERROR_MESSAGES: Record<string, string> = {
   'already-checked-in': 'Esta reserva ya tiene un check-in registrado.',
   'not-checked-in-yet': 'Primero hay que registrar el check-in antes del check-out.',
   'already-checked-out': 'Esta reserva ya tiene un check-out registrado.',
+  'checkin-too-early': 'Todavía no es el día de check-in de esta reserva.',
 };
 export function describeApiError(err: unknown): string {
   if (err instanceof ApiError) return API_ERROR_MESSAGES[err.code] ?? `Ocurrió un error (${err.code}).`;

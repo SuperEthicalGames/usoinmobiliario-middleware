@@ -4,6 +4,15 @@ import { api, ApiError, describeApiError } from '../api';
 import type { PaymentInfo } from '../types';
 import { useAuth } from '../AuthContext';
 import { AsyncSection, Button, Card, Field, PageHeader } from '../components/ui';
+import { Users } from './Users';
+import { AuditLog } from './AuditLog';
+
+// Configuración, Usuarios y Bitácora ahora viven en un solo lugar (pedido explícito: separar
+// "Configuración" de la lista operativa de arriba, ponerlo junto a Cerrar sesión, y fusionarlo
+// con Usuarios/Bitácora) — antes eran 3 rutas/links distintos. Datos bancarios y Cambiar
+// contraseña siguen siendo para CUALQUIER staff (owner y admin, nunca solo-dueño — así ya
+// funcionaban en Settings.tsx); Usuarios/Bitácora se quedan solo-dueño, ahora como pestañas en
+// vez de páginas propias.
 
 const EMPTY_INFO: PaymentInfo = { bankName: '', accountHolder: '', accountType: '', accountNumber: '' };
 
@@ -149,14 +158,45 @@ function ChangePasswordCard() {
   );
 }
 
-export function Settings() {
+type Tab = 'general' | 'usuarios' | 'bitacora';
+const TABS: { key: Tab; label: string }[] = [
+  { key: 'general', label: 'General' },
+  { key: 'usuarios', label: 'Usuarios' },
+  { key: 'bitacora', label: 'Bitácora' },
+];
+
+export function Configuracion() {
+  const { isSuperAdmin } = useAuth();
+  const [tab, setTab] = useState<Tab>('general');
+
   return (
     <div>
-      <PageHeader title="Configuración" />
-      <div className="grid max-w-2xl gap-6">
-        <ChangePasswordCard />
-        <PaymentInfoCard />
-      </div>
+      <PageHeader title="Configuración" subtitle={isSuperAdmin ? undefined : 'Datos bancarios y tu cuenta.'} />
+
+      {isSuperAdmin && (
+        <div className="mb-5 flex flex-wrap gap-2">
+          {TABS.map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={`rounded-full px-4 py-1.5 text-xs font-bold uppercase tracking-wide transition ${
+                tab === t.key ? 'bg-graphite-900 text-white' : 'border border-line text-muted hover:border-gold/60 hover:text-gold-dark'
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {(!isSuperAdmin || tab === 'general') && (
+        <div className="grid max-w-2xl gap-6">
+          <ChangePasswordCard />
+          <PaymentInfoCard />
+        </div>
+      )}
+      {isSuperAdmin && tab === 'usuarios' && <Users />}
+      {isSuperAdmin && tab === 'bitacora' && <AuditLog />}
     </div>
   );
 }

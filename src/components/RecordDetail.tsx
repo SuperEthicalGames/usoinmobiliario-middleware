@@ -1,9 +1,16 @@
 import { useEffect, useState } from 'react';
 import type { RecordAction, ReservationRecord } from '../types';
 import { api, describeApiError } from '../api';
-import { Button, fmtCOP, fmtDate } from './ui';
+import { Button, ConfirmDialog, fmtCOP, fmtDate } from './ui';
 import { PaymentBadge, StatusBadge, TypeBadge } from './StatusBadge';
 import { CloseIcon, ExternalLinkIcon } from './icons';
+
+// Fecha local del navegador (sin zona horaria de negocio, a diferencia de todayIsoBogota en el
+// backend) — suficiente para decidir si MOSTRAR el botón deshabilitado; el backend es quien de
+// verdad manda y rechaza con checkin-too-early si igual se intentara.
+function todayIsoLocal(): string {
+  return new Date().toISOString().slice(0, 10);
+}
 
 // Reservas y citas comparten la misma máquina de estados (confirm/reject/cancel/complete) —
 // mismo criterio que setReservationStatus en el backend, un solo componente para las dos.
@@ -38,6 +45,9 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
+type CheckKind = 'check-in' | 'check-out';
+type PendingConfirm = { kind: 'action'; action: RecordAction } | { kind: 'check'; check: CheckKind };
+
 export function RecordDetail({ record, onClose, onUpdated }: {
   record: ReservationRecord;
   onClose: () => void;
@@ -46,8 +56,10 @@ export function RecordDetail({ record, onClose, onUpdated }: {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [show, setShow] = useState(false);
+  const [confirming, setConfirming] = useState<PendingConfirm | null>(null);
   const isVisit = record.type === 'cita';
   const canTrackStay = !isVisit && record.status === 'confirmada';
+  const checkinTooEarly = !isVisit && !!record.checkin && todayIsoLocal() < record.checkin;
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => setShow(true));
@@ -70,10 +82,11 @@ export function RecordDetail({ record, onClose, onUpdated }: {
       setError(describeApiError(err));
     } finally {
       setBusy(null);
+      setConfirming(null);
     }
   }
 
-  async function runCheck(kind: 'check-in' | 'check-out') {
+  async function runCheck(kind: CheckKind) {
     setBusy(kind);
     setError(null);
     try {
@@ -83,7 +96,14 @@ export function RecordDetail({ record, onClose, onUpdated }: {
       setError(describeApiError(err));
     } finally {
       setBusy(null);
+      setConfirming(null);
     }
+  }
+
+  function confirmAndRun() {
+    if (!confirming) return;
+    if (confirming.kind === 'action') run(confirming.action);
+    else runCheck(confirming.check);
   }
 
   return (
@@ -166,12 +186,20 @@ export function RecordDetail({ record, onClose, onUpdated }: {
             <Row label="Check-in real" value={record.actualCheckinAt ? new Date(record.actualCheckinAt).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' }) : undefined} />
             <Row label="Check-out real" value={record.actualCheckoutAt ? new Date(record.actualCheckoutAt).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' }) : undefined} />
             {!record.actualCheckinAt && (
-              <Button className="mt-2" disabled={!!busy} onClick={() => runCheck('check-in')}>
+              <Button
+                className="mt-2"
+                disabled={!!busy || checkinTooEarly}
+                title={checkinTooEarly ? `Todavía no es el día de check-in (es el ${fmtDate(record.checkin)}).` : undefined}
+                onClick={() => setConfirming({ kind: 'check', check: 'check-in' })}
+              >
                 {busy === 'check-in' ? '...' : 'Registrar check-in'}
               </Button>
             )}
+            {checkinTooEarly && !record.actualCheckinAt && (
+              <p className="mt-1.5 text-xs text-muted">Disponible a partir del {fmtDate(record.checkin)}.</p>
+            )}
             {record.actualCheckinAt && !record.actualCheckoutAt && (
-              <Button className="mt-2" disabled={!!busy} onClick={() => runCheck('check-out')}>
+              <Button className="mt-2" disabled={!!busy} onClick={() => setConfirming({ kind: 'check', check: 'check-out' })}>
                 {busy === 'check-out' ? '...' : 'Registrar check-out'}
               </Button>
             )}
@@ -185,12 +213,30 @@ export function RecordDetail({ record, onClose, onUpdated }: {
 
         <div className="mt-6 flex flex-wrap gap-2">
           {ACTIONS.filter((a) => a.when(record)).map((a) => (
-            <Button key={a.key} variant={a.variant} disabled={!!busy} onClick={() => run(a.key)} title={a.hint}>
+            <Button key={a.key} variant={a.variant} disabled={!!busy} onClick={() => setConfirming({ kind: 'action', action: a.key })} title={a.hint}>
               {busy === a.key ? '...' : a.label}
             </Button>
           ))}
         </div>
       </div>
+
+      {confirming && (
+        <ConfirmDialog
+          title={confirming.kind === 'check'
+            ? (confirming.check === 'check-in' ? 'Registrar check-in' : 'Registrar check-out')
+            : `¿${ACTIONS.find((a) => a.key === confirming.action)?.label} esta ${isVisit ? 'cita' : 'reserva'}?`}
+          description={confirming.kind === 'check'
+            ? (confirming.check === 'check-in'
+                ? 'Marca la unidad como en uso ahora mismo — se refleja de inmediato en el catálogo público.'
+                : 'Marca la estadía como terminada y programa el aseo de salida automáticamente.')
+            : ACTIONS.find((a) => a.key === confirming.action)?.hint}
+          tone={confirming.kind === 'action' && confirming.action === 'reject' ? 'danger' : 'primary'}
+          busy={!!busy}
+          confirmLabel="Sí, continuar"
+          onCancel={() => setConfirming(null)}
+          onConfirm={confirmAndRun}
+        />
+      )}
     </div>
   );
 }

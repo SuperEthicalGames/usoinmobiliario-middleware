@@ -15,9 +15,7 @@ const Reservations = lazy(() => import('./pages/Reservations').then((m) => ({ de
 const ManualReservation = lazy(() => import('./pages/ManualReservation').then((m) => ({ default: m.ManualReservation })));
 const Payments = lazy(() => import('./pages/Payments').then((m) => ({ default: m.Payments })));
 const Visits = lazy(() => import('./pages/Visits').then((m) => ({ default: m.Visits })));
-const Settings = lazy(() => import('./pages/Settings').then((m) => ({ default: m.Settings })));
-const Users = lazy(() => import('./pages/Users').then((m) => ({ default: m.Users })));
-const AuditLog = lazy(() => import('./pages/AuditLog').then((m) => ({ default: m.AuditLog })));
+const Configuracion = lazy(() => import('./pages/Configuracion').then((m) => ({ default: m.Configuracion })));
 const Contracts = lazy(() => import('./pages/Contracts').then((m) => ({ default: m.Contracts })));
 const Cleaning = lazy(() => import('./pages/Cleaning').then((m) => ({ default: m.Cleaning })));
 const Maintenance = lazy(() => import('./pages/Maintenance').then((m) => ({ default: m.Maintenance })));
@@ -55,9 +53,7 @@ function Gate() {
             <Route path="pagos" element={<Payments />} />
             <Route path="visitas" element={<Visits />} />
             <Route path="contratos" element={<Contracts />} />
-            <Route path="configuracion" element={<Settings />} />
-            <Route path="usuarios" element={<Users />} />
-            <Route path="bitacora" element={<AuditLog />} />
+            <Route path="configuracion" element={<Configuracion />} />
           </Route>
           <Route path="aseo" element={<Cleaning />} />
           <Route path="mantenimiento" element={<Maintenance />} />

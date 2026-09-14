@@ -3,7 +3,7 @@ import { Navigate } from 'react-router-dom';
 import { api, describeApiError } from '../api';
 import type { AuditDomain, AuditLogEntry } from '../types';
 import { useAuth } from '../AuthContext';
-import { AsyncSection, Card, PageHeader } from '../components/ui';
+import { AsyncSection, Card } from '../components/ui';
 
 // Etiquetas legibles para las acciones que fb.logAdminAction registra (ver adminRoutes.js) —
 // cualquier acción nueva que no esté acá simplemente se muestra tal cual (el string ya es
@@ -88,10 +88,7 @@ export function AuditLog() {
 
   return (
     <div>
-      <PageHeader
-        title="Bitácora"
-        subtitle="Quién hizo qué en el panel — las últimas 200 acciones administrativas que cambiaron algo real (reservas, pagos, apartamentos, usuarios)."
-      />
+      <p className="mb-5 text-sm text-muted">Quién hizo qué en el panel — las últimas 200 acciones administrativas que cambiaron algo real (reservas, pagos, apartamentos, usuarios).</p>
       <div className="mb-5 flex flex-wrap gap-2">
         {DOMAIN_FILTERS.map((f) => (
           <button

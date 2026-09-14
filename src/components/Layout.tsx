@@ -4,8 +4,8 @@ import { useAuth } from '../AuthContext';
 import logoIcon from '../assets/brand/logo-icon.webp';
 import { NotificationBell } from './NotificationBell';
 import {
-  BuildingIcon, CalendarIcon, CardIcon, ChartIcon, CloseIcon, DocumentIcon, GearIcon, GridIcon, HistoryIcon, LogoutIcon,
-  MenuIcon, PinIcon, SparkleIcon, UsersIcon, WrenchIcon, type IconProps,
+  BuildingIcon, CalendarIcon, CardIcon, ChartIcon, CloseIcon, DocumentIcon, GearIcon, GridIcon, LogoutIcon,
+  MenuIcon, PinIcon, SparkleIcon, WrenchIcon, type IconProps,
 } from './icons';
 
 // Reserva Manual se entra desde Reservas con un botón, no es nav propio — mismo criterio ya
@@ -21,7 +21,6 @@ const STAFF_NAV_ITEMS: { to: string; label: string; end?: boolean; icon: Compone
   { to: '/contratos', label: 'Contratos', icon: DocumentIcon },
   { to: '/aseo', label: 'Aseo', icon: SparkleIcon },
   { to: '/mantenimiento', label: 'Mantenimiento', icon: WrenchIcon },
-  { to: '/configuracion', label: 'Configuración', icon: GearIcon },
 ];
 // Interfaz operacional simplificada (sección 4 del pedido: Least Privilege) — un empleado nunca
 // ve nada de reservas/pagos/apartamentos/analíticas/configuración, solo lo que necesita para
@@ -33,15 +32,11 @@ const EMPLOYEE_NAV_ITEMS: typeof STAFF_NAV_ITEMS = [
 ];
 
 function SidebarContent({ onNavigate }: { onNavigate: () => void }) {
-  const { user, role, isSuperAdmin, logout } = useAuth();
-  // Usuarios/Bitácora solo aparecen para el dueño — restricción real vive en el backend
-  // (requireSuperAdmin), esto es solo para no mostrarle a alguien un link a algo que de todas
-  // formas el servidor le va a rechazar con 403.
-  const navItems: typeof STAFF_NAV_ITEMS = role === 'employee'
-    ? EMPLOYEE_NAV_ITEMS
-    : isSuperAdmin
-      ? [...STAFF_NAV_ITEMS, { to: '/usuarios', label: 'Usuarios', icon: UsersIcon }, { to: '/bitacora', label: 'Bitácora', icon: HistoryIcon }]
-      : STAFF_NAV_ITEMS;
+  const { user, role, logout } = useAuth();
+  // Usuarios/Bitácora ya no son nav propio — viven como pestañas dentro de Configuración (solo
+  // visibles ahí para el dueño, ver Configuracion.tsx), así que acá ya no hace falta ninguna
+  // rama por isSuperAdmin.
+  const navItems: typeof STAFF_NAV_ITEMS = role === 'employee' ? EMPLOYEE_NAV_ITEMS : STAFF_NAV_ITEMS;
 
   return (
     <>
@@ -77,22 +72,34 @@ function SidebarContent({ onNavigate }: { onNavigate: () => void }) {
       </nav>
 
       <div className="border-t border-white/10 px-4 py-4">
-        <div className="flex items-center justify-between gap-2">
-          <div className="min-w-0">
-            <div className="truncate text-xs text-graphite-400" title={user?.email ?? ''}>{user?.email}</div>
-            {role && role !== 'admin' && (
-              <span
-                className={`mt-1.5 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
-                  role === 'owner' ? 'bg-gold/15 text-gold-light' : 'bg-emerald/20 text-emerald'
-                }`}
-              >
-                {role === 'owner' ? 'Dueño' : 'Empleado'}
-              </span>
-            )}
-          </div>
-          <NotificationBell />
+        <div className="min-w-0">
+          <div className="truncate text-xs text-graphite-400" title={user?.email ?? ''}>{user?.email}</div>
+          {role && role !== 'admin' && (
+            <span
+              className={`mt-1.5 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                role === 'owner' ? 'bg-gold/15 text-gold-light' : 'bg-emerald/20 text-emerald'
+              }`}
+            >
+              {role === 'owner' ? 'Dueño' : 'Empleado'}
+            </span>
+          )}
         </div>
-        <button onClick={() => logout()} className="mt-3 flex items-center gap-1.5 text-sm font-bold text-graphite-400 transition hover:text-white">
+        {/* Configuración separada de la lista operativa de arriba, junto a Cerrar sesión
+            (pedido explícito) — Usuarios/Bitácora ya no son links propios, viven como pestañas
+            DENTRO de Configuración (solo visibles ahí para el dueño, ver Configuracion.tsx).
+            Mismo criterio de visibilidad que tenía Configuración antes: cualquier staff menos
+            empleado (Datos bancarios/Cambiar contraseña son para owner Y admin). */}
+        {role !== 'employee' && (
+          <NavLink
+            to="/configuracion"
+            onClick={onNavigate}
+            className={({ isActive }) => `mt-3 flex items-center gap-1.5 text-sm font-bold transition ${isActive ? 'text-white' : 'text-graphite-400 hover:text-white'}`}
+          >
+            <GearIcon className="h-4 w-4" />
+            Configuración
+          </NavLink>
+        )}
+        <button onClick={() => logout()} className="mt-2.5 flex items-center gap-1.5 text-sm font-bold text-graphite-400 transition hover:text-white">
           <LogoutIcon className="h-4 w-4" />
           Cerrar sesión
         </button>
@@ -141,16 +148,23 @@ export function Layout() {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-line bg-card/95 px-4 py-3 backdrop-blur lg:hidden">
+        {/* Antes era lg:hidden (solo aparecía en móvil) — ahora es una barra persistente en
+            todos los tamaños: es donde vive la campana de notificaciones rediseñada, que
+            necesitaba el ancho real del área de contenido en vez de los 288px de la sidebar
+            (bug real reportado: el panel de notificaciones se veía roto ahí apretado). */}
+        <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-line bg-card/95 px-4 py-3 backdrop-blur lg:px-8">
           <button
             onClick={() => setNavOpen(true)}
             aria-label="Abrir menú"
-            className="rounded-lg p-1.5 text-ink/70 transition hover:bg-paper-2 hover:text-ink"
+            className="rounded-lg p-1.5 text-ink/70 transition hover:bg-paper-2 hover:text-ink lg:hidden"
           >
             <MenuIcon className="h-6 w-6" />
           </button>
-          <img src={logoIcon} alt="" className="h-6 w-6 object-contain" />
-          <span className="font-display text-sm font-semibold text-ink">USO Inmobiliario</span>
+          <img src={logoIcon} alt="" className="h-6 w-6 object-contain lg:hidden" />
+          <span className="font-display text-sm font-semibold text-ink lg:hidden">USO Inmobiliario</span>
+          <div className="ml-auto">
+            <NotificationBell />
+          </div>
         </header>
 
         <main className="min-w-0 flex-1 overflow-y-auto px-4 py-6 sm:px-6 sm:py-8 lg:px-10 lg:py-10">
