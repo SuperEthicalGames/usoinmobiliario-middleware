@@ -41,7 +41,10 @@
   --color-red: #c13a3a;
   --color-red-dark: #942c2c;
 
-  --font-display: 'Fraunces', ui-serif, Georgia, serif;
+  /* Mismo par tipográfico que el sitio público y los correos transaccionales (rebranding
+     2026-09-13, ver ARCHITECTURE.md del repo del sitio) — antes acá era 'Fraunces' (serif
+     editorial), inconsistente con el resto de la identidad ya actualizada. */
+  --font-display: 'Manrope', ui-sans-serif, system-ui, sans-serif;
   --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
 }
 
