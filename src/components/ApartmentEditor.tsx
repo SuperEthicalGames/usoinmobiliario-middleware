@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
-import type { Apartment, OperationalStatus } from '../types';
+import type { Apartment, OperationalStatus, Room } from '../types';
 import { api, describeApiError } from '../api';
+import { uploadImage, CloudinaryUploadError } from '../lib/cloudinary';
 import { Button, Field, Select } from './ui';
+import { RoomsEditor } from './RoomsEditor';
 import { CloseIcon } from './icons';
 
 // Mismo patrón de panel deslizante que RecordDetail.tsx — un solo lenguaje visual para "abrir
@@ -47,6 +49,7 @@ interface FormState {
   rateTwo: RateRow;
   rateExtra: RateRow;
   rateMonth: string;
+  rooms: Room[];
   promo: boolean;
   flagship: boolean;
 }
@@ -65,6 +68,7 @@ function toForm(apt: Apartment): FormState {
     rateTwo: toRateRow(apt.rates?.two),
     rateExtra: toRateRow(apt.rates?.extra),
     rateMonth: apt.rates?.month != null ? String(apt.rates.month) : '',
+    rooms: apt.rooms ?? [],
     promo: !!apt.promo,
     flagship: !!apt.flagship,
   };
@@ -88,6 +92,13 @@ function toPatch(f: FormState): Record<string, unknown> {
   const extra = rateRowToArray(f.rateExtra); if (extra) rates.extra = extra;
   if (f.rateMonth.trim()) rates.month = Number(f.rateMonth);
   patch.rates = rates;
+  patch.rooms = f.rooms.map((r) => ({
+    slug: r.slug, img: r.img, thumb: r.thumb, area: r.area.trim(),
+    name: { es: r.name.es.trim(), en: r.name.en.trim() },
+    tag: { es: r.tag.es.trim(), en: r.tag.en.trim() },
+    blurb: { es: r.blurb.es.trim(), en: r.blurb.en.trim() },
+    features: r.features.map((feat) => ({ es: feat.es.trim(), en: feat.en.trim() })).filter((feat) => feat.es || feat.en),
+  }));
   return patch;
 }
 
@@ -100,6 +111,7 @@ export function ApartmentEditor({ apartment, onClose, onSaved }: {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [show, setShow] = useState(false);
+  const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => setShow(true));
@@ -122,7 +134,29 @@ export function ApartmentEditor({ apartment, onClose, onSaved }: {
     });
   }
 
+  async function handleRoomUpload(index: number, file: File) {
+    setUploadingIndex(index);
+    setError(null);
+    try {
+      const { url, thumbUrl } = await uploadImage(file);
+      setForm((prev) => {
+        const rooms = [...prev.rooms];
+        rooms[index] = { ...rooms[index], img: url, thumb: thumbUrl };
+        return { ...prev, rooms };
+      });
+    } catch (err) {
+      setError(err instanceof CloudinaryUploadError ? err.message : 'No se pudo subir la foto.');
+    } finally {
+      setUploadingIndex(null);
+    }
+  }
+
   async function save() {
+    const missingPhoto = form.rooms.findIndex((r) => !r.img || !r.thumb);
+    if (missingPhoto !== -1) {
+      setError(`El ambiente #${missingPhoto + 1} (${form.rooms[missingPhoto].name.es || 'sin nombre'}) todavía no tiene foto.`);
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
@@ -142,7 +176,7 @@ export function ApartmentEditor({ apartment, onClose, onSaved }: {
       onClick={onClose}
     >
       <div
-        className={`h-full w-full max-w-lg overflow-y-auto bg-card p-6 shadow-2xl transition-transform duration-200 ease-out ${show ? 'translate-x-0' : 'translate-x-full'}`}
+        className={`h-full w-full max-w-2xl overflow-y-auto bg-card p-6 shadow-2xl transition-transform duration-200 ease-out ${show ? 'translate-x-0' : 'translate-x-full'}`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-5 flex items-start justify-between gap-3">
@@ -232,15 +266,24 @@ export function ApartmentEditor({ apartment, onClose, onSaved }: {
             </label>
           </div>
 
+          <div className="border-t border-line pt-4">
+            <RoomsEditor
+              rooms={form.rooms}
+              uploadingIndex={uploadingIndex}
+              onRoomsChange={(rooms) => set('rooms', rooms)}
+              onUpload={handleRoomUpload}
+            />
+            <p className="mt-2 text-xs text-muted">
+              Estas fotos y descripciones son de ESTE apartamento — aunque comparta categoría con otros, cada unidad tiene su propia distribución real.
+            </p>
+          </div>
+
           {error && <p className="rounded-xl bg-red/10 px-3.5 py-2.5 text-sm text-red-dark">{error}</p>}
 
           <div className="flex justify-end gap-2 border-t border-line pt-4">
             <Button variant="ghost" onClick={onClose}>Cancelar</Button>
-            <Button disabled={saving} onClick={save}>{saving ? 'Guardando...' : 'Guardar cambios'}</Button>
+            <Button disabled={saving || uploadingIndex !== null} onClick={save}>{saving ? 'Guardando...' : 'Guardar cambios'}</Button>
           </div>
-          <p className="text-xs text-muted">
-            No se editan fotos ni el recorrido 360° desde acá — esos siguen viviendo como archivos en <code>media/</code> del sitio público, fuera de Firebase por diseño del proyecto.
-          </p>
         </div>
       </div>
     </div>

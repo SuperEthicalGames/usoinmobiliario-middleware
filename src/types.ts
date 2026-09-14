@@ -18,6 +18,22 @@ export interface Rates {
 
 export type OperationalStatus = 'disponible' | 'en-uso' | 'reservado';
 
+// Un ambiente del apartamento (sala, cocina, baño...) — POR UNIDAD, no por categoría (decisión
+// 2026-09-13: dos apartamentos "estudio" son distribuciones reales distintas, un modelo
+// compartido no sirve para describirlas). img/thumb son URLs completas (Cloudinary) o, para
+// unidades más viejas, una ruta relativa `media/...` — ver isSafeMediaUrl en firebase.js, que
+// es quien realmente valida esto server-side.
+export interface Room {
+  slug: string;
+  img: string;
+  thumb: string;
+  area: string; // texto libre, ej. "14 m² aprox."
+  name: BilingualText;
+  tag: BilingualText;
+  blurb: BilingualText;
+  features: BilingualText[];
+}
+
 export interface Apartment {
   _key: string;
   typeKey: string;
@@ -31,6 +47,7 @@ export interface Apartment {
   beds: string[];
   feature?: BilingualText;
   rates?: Rates;
+  rooms?: Room[]; // fotos/descripciones de esta unidad — ausente/[] = "fotos próximamente" en el sitio
   promo?: boolean;
   flagship?: boolean;
 }
@@ -198,30 +215,15 @@ export interface ApiErrorBody {
   missingFields?: string[];
 }
 
-// Un ambiente del modelo (sala, cocina, baño...) — compartido por TODAS las unidades de esa
-// categoría, nunca por apartamento individual (así ya funciona el sitio: "el recorrido 360°
-// mostrado es representativo del modelo"). img/thumb son URLs completas (Cloudinary) o, para
-// las fotos originales del sitio, una ruta relativa `media/...` — ver isSafeMediaUrl en
-// firebase.js, que es quien realmente valida esto server-side.
-export interface Room {
-  slug: string;
-  img: string;
-  thumb: string;
-  area: string; // texto libre, ej. "14 m² aprox."
-  name: BilingualText;
-  tag: BilingualText;
-  blurb: BilingualText;
-  features: BilingualText[];
-}
-
 // catLabel es el nombre real que ya usa el sitio público (index.html) — "Amoblado 1 Ambiente" /
 // "Amoblado 2 Ambientes" — nunca se inventa una traducción nueva de "estudio"/"dos" acá.
+// Puramente navegación/agrupación (los filtros de categoría en Apartamentos) — sin editor
+// propio, las fotos/descripciones ahora viven en Apartment.rooms (por unidad).
 export interface Category {
   catLabel: BilingualText;
   name: BilingualText;
   shortName?: BilingualText;
   blurb?: BilingualText;
-  rooms?: Room[];
 }
 export type Categories = Record<string, Category>;
 
