@@ -77,10 +77,10 @@ function SidebarContent({ onNavigate }: { onNavigate: () => void }) {
           {role && role !== 'admin' && (
             <span
               className={`mt-1.5 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
-                role === 'owner' ? 'bg-gold/15 text-gold-light' : 'bg-emerald/20 text-emerald'
+                role === 'owner' || role === 'developer' ? 'bg-gold/15 text-gold-light' : 'bg-emerald/20 text-emerald'
               }`}
             >
-              {role === 'owner' ? 'Dueño' : 'Empleado'}
+              {role === 'owner' ? 'Dueño' : role === 'developer' ? 'Desarrollador' : 'Empleado'}
             </span>
           )}
         </div>

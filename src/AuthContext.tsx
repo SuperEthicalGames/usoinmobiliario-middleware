@@ -50,7 +50,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await signOut(auth);
   }
 
-  const isSuperAdmin = role === 'owner';
+  // 'developer' tiene los mismos permisos que el dueño (el backend lo trata así, ver
+  // adminAuth.requireRole) — la UI solo espeja esa decisión.
+  const isSuperAdmin = role === 'owner' || role === 'developer';
   return <AuthContext.Provider value={{ user, loading, role, isSuperAdmin, login, logout }}>{children}</AuthContext.Provider>;
 }
 

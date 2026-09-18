@@ -149,9 +149,11 @@ export function Users() {
                           <td className="px-4 py-3">
                             {!isOwner && !isSelf && (
                               <div className="flex justify-end gap-2">
-                                <Button variant="ghost" disabled={busyUid === a.uid} onClick={() => toggleRole(a)}>
-                                  {busyUid === a.uid ? '...' : a.role === 'employee' ? 'Hacer admin' : 'Hacer empleado'}
-                                </Button>
+                                {a.role !== 'developer' && (
+                                  <Button variant="ghost" disabled={busyUid === a.uid} onClick={() => toggleRole(a)}>
+                                    {busyUid === a.uid ? '...' : a.role === 'employee' ? 'Hacer admin' : 'Hacer empleado'}
+                                  </Button>
+                                )}
                                 <Button
                                   variant={a.disabled ? 'primary' : 'danger'}
                                   disabled={busyUid === a.uid}
@@ -186,9 +188,11 @@ export function Users() {
                       <div className="text-xs text-muted">Creado: {fmtDateTime(a.createdAt)}</div>
                       {!isOwner && !isSelf && (
                         <div className="mt-1 flex gap-2">
-                          <Button variant="ghost" disabled={busyUid === a.uid} onClick={() => toggleRole(a)} className="flex-1 justify-center">
-                            {busyUid === a.uid ? '...' : a.role === 'employee' ? 'Hacer admin' : 'Hacer empleado'}
-                          </Button>
+                          {a.role !== 'developer' && (
+                            <Button variant="ghost" disabled={busyUid === a.uid} onClick={() => toggleRole(a)} className="flex-1 justify-center">
+                              {busyUid === a.uid ? '...' : a.role === 'employee' ? 'Hacer admin' : 'Hacer empleado'}
+                            </Button>
+                          )}
                           <Button
                             variant={a.disabled ? 'primary' : 'danger'}
                             disabled={busyUid === a.uid}

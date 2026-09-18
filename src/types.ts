@@ -267,7 +267,7 @@ export type Categories = Record<string, Category>;
 
 // OWNER es siempre config.superAdminEmail en el backend (nunca un dato asignable) — ADMIN y
 // EMPLOYEE son cuentas de Firebase Auth con un documento en roles/{uid} (ver adminAuth.js).
-export type Role = 'owner' | 'admin' | 'employee';
+export type Role = 'owner' | 'developer' | 'admin' | 'employee';
 
 export interface MeInfo {
   uid: string;

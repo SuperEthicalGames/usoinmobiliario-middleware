@@ -83,8 +83,8 @@ export function AdminStatusBadge({ disabled }: { disabled: boolean }) {
   return <Pill tone={disabled ? 'red' : 'emerald'}>{disabled ? 'Revocado' : 'Activo'}</Pill>;
 }
 
-const ROLE_TONE: Record<string, Tone> = { owner: 'gold', admin: 'graphite', employee: 'emerald' };
-const ROLE_LABELS: Record<string, string> = { owner: 'Dueño', admin: 'Administrador', employee: 'Empleado' };
+const ROLE_TONE: Record<string, Tone> = { owner: 'gold', developer: 'gold', admin: 'graphite', employee: 'emerald' };
+const ROLE_LABELS: Record<string, string> = { owner: 'Dueño', developer: 'Desarrollador', admin: 'Administrador', employee: 'Empleado' };
 export function RoleBadge({ role }: { role: string }) {
   return <Pill tone={ROLE_TONE[role] ?? 'graphite'} solid={role === 'owner'}>{ROLE_LABELS[role] ?? role}</Pill>;
 }
