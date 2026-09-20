@@ -144,65 +144,102 @@ export function TrendChart({ points, formatValue, color = 'var(--color-emerald)'
 }) {
   const gradId = useId();
   const [hover, setHover] = useState<number | null>(null);
-  const max = Math.max(...points.map((p) => p.value), 0.0001);
   const n = points.length;
+  if (n === 0) return <p className="text-sm text-muted">Sin datos en este período.</p>;
+
+  // Todo (puntos, zonas de hover y etiquetas) usa el MISMO centro de celda, (i + 0.5) / n — antes
+  // los puntos iban de borde a borde (i / (n-1)) mientras hover y etiquetas eran celdas iguales,
+  // así que el cursor, el tooltip y la etiqueta quedaban corridos respecto del dato real.
+  const dataMax = Math.max(...points.map((p) => p.value), 0);
+  const max = dataMax > 0 ? dataMax : 1;
   const W = 100;
   const H = 100;
-  const coords = points.map((p, i) => ({
-    x: n > 1 ? (i / (n - 1)) * W : W / 2,
-    y: H - (p.value / max) * H,
-  }));
+  const coords = points.map((p, i) => ({ x: ((i + 0.5) / n) * W, y: H - (Math.max(p.value, 0) / max) * H }));
   const linePath = coords.map((c, i) => `${i === 0 ? 'M' : 'L'} ${c.x} ${c.y}`).join(' ');
-  const areaPath = `${linePath} L ${coords[coords.length - 1]?.x ?? 0} ${H} L ${coords[0]?.x ?? 0} ${H} Z`;
+  const areaPath = `${linePath} L ${coords[n - 1].x} ${H} L ${coords[0].x} ${H} Z`;
+  // Con muchos puntos (ej. 30 días de tráfico) las etiquetas no caben todas: se muestra una de cada
+  // `labelStep`, sin truncar ninguna.
+  const labelStep = Math.max(1, Math.ceil(n / 6));
+  const showDots = n <= 15;
 
   return (
-    <div className="relative" style={{ height }}>
-      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="h-full w-full overflow-visible">
-        {[0, 0.5, 1].map((s) => (
-          <line key={s} x1={0} x2={W} y1={H * (1 - s)} y2={H * (1 - s)} stroke="var(--color-line)" strokeWidth={0.5} vectorEffect="non-scaling-stroke" />
-        ))}
-        <defs>
-          <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={color} stopOpacity={0.22} />
-            <stop offset="100%" stopColor={color} stopOpacity={0} />
-          </linearGradient>
-        </defs>
-        <path d={areaPath} fill={`url(#${gradId})`} stroke="none" />
-        <path d={linePath} fill="none" stroke={color} strokeWidth={2} vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" />
-        {hover != null && (
-          <>
-            <line x1={coords[hover].x} x2={coords[hover].x} y1={0} y2={H} stroke="var(--color-graphite-400)" strokeWidth={0.5} vectorEffect="non-scaling-stroke" />
-            <circle cx={coords[hover].x} cy={coords[hover].y} r={2.6} fill={color} stroke="var(--color-card)" strokeWidth={1.2} vectorEffect="non-scaling-stroke" />
-          </>
-        )}
-      </svg>
-      <div className="absolute inset-0 flex">
+    <div>
+      <div className="flex">
+        <div className="flex w-14 shrink-0 flex-col justify-between pr-2 text-right text-[10px] text-muted" style={{ height }}>
+          {[1, 0.5, 0].map((s) => <span key={s}>{formatValue(max * s)}</span>)}
+        </div>
+        <div className="relative min-w-0 flex-1" style={{ height }}>
+          {/* Solo la línea/área/rejilla van en SVG estirado (preserveAspectRatio none) — los
+              marcadores son HTML para que no se deformen en elipse al estirar el ancho. */}
+          <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="h-full w-full overflow-visible">
+            {[0, 0.5, 1].map((s) => (
+              <line key={s} x1={0} x2={W} y1={H * (1 - s)} y2={H * (1 - s)} stroke="var(--color-line)" strokeWidth={0.5} vectorEffect="non-scaling-stroke" />
+            ))}
+            <defs>
+              <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={color} stopOpacity={0.22} />
+                <stop offset="100%" stopColor={color} stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            {n > 1 && <path d={areaPath} fill={`url(#${gradId})`} stroke="none" />}
+            {n > 1 && <path d={linePath} fill="none" stroke={color} strokeWidth={2} vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" />}
+          </svg>
+          {hover != null && (
+            <div className="pointer-events-none absolute top-0 bottom-0 w-px bg-graphite-400/60" style={{ left: `${coords[hover].x}%` }} />
+          )}
+          {coords.map((c, i) => {
+            const active = hover === i;
+            if (!showDots && !active) return null;
+            const size = active ? 14 : n === 1 ? 14 : 9;
+            return (
+              <span
+                key={points[i].key}
+                className="pointer-events-none absolute rounded-full"
+                style={{ left: `${c.x}%`, top: `${c.y}%`, width: size, height: size, marginLeft: -size / 2, marginTop: -size / 2, background: color, border: '2px solid var(--color-card)', boxSizing: 'border-box' }}
+              />
+            );
+          })}
+          <div className="absolute inset-0 flex">
+            {points.map((p, i) => {
+              // Tooltip pegado al borde en los extremos para que no se salga de la tarjeta.
+              const edge = i < n * 0.15 ? 'left' : i >= n * 0.85 ? 'right' : 'center';
+              return (
+                <div
+                  key={p.key}
+                  className="relative h-full flex-1"
+                  onMouseEnter={() => setHover(i)}
+                  onMouseLeave={() => setHover((h) => (h === i ? null : h))}
+                  onFocus={() => setHover(i)}
+                  onBlur={() => setHover((h) => (h === i ? null : h))}
+                  tabIndex={0}
+                  role="img"
+                  aria-label={`${p.label}: ${formatValue(p.value)}`}
+                >
+                  {hover === i && (
+                    <div
+                      className={`pointer-events-none absolute z-10 w-max rounded-lg border border-line bg-graphite-900 px-3 py-1.5 text-xs text-white shadow-lg ${
+                        edge === 'left' ? 'left-0' : edge === 'right' ? 'right-0' : 'left-1/2 -translate-x-1/2'
+                      }`}
+                      style={{ top: `${Math.max(coords[i].y - 22, 0)}%` }}
+                    >
+                      <span className="font-bold text-graphite-400">{p.label}</span>{' '}
+                      <span className="font-bold tabular-nums">{formatValue(p.value)}</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+      <div className="flex pl-14 pt-1">
         {points.map((p, i) => (
-          <div
-            key={p.key}
-            className="relative h-full flex-1"
-            onMouseEnter={() => setHover(i)}
-            onMouseLeave={() => setHover((h) => (h === i ? null : h))}
-            onFocus={() => setHover(i)}
-            onBlur={() => setHover((h) => (h === i ? null : h))}
-            tabIndex={0}
-            role="img"
-            aria-label={`${p.label}: ${formatValue(p.value)}`}
-          >
-            {hover === i && (
-              <div
-                className="pointer-events-none absolute left-1/2 z-10 w-max -translate-x-1/2 rounded-lg border border-line bg-graphite-900 px-3 py-1.5 text-xs text-white shadow-lg"
-                style={{ top: `${Math.max(coords[i].y - 15, 0)}%` }}
-              >
-                <span className="font-bold text-graphite-400">{p.label}</span>{' '}
-                <span className="font-bold tabular-nums">{formatValue(p.value)}</span>
-              </div>
+          <div key={p.key} className="relative h-4 min-w-0 flex-1">
+            {i % labelStep === 0 && (
+              <span className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] text-muted">{p.label}</span>
             )}
           </div>
         ))}
-      </div>
-      <div className="absolute inset-x-0 bottom-0 flex translate-y-full pt-1">
-        {points.map((p) => <div key={p.key} className="flex-1 truncate text-center text-[10px] text-muted">{p.label}</div>)}
       </div>
     </div>
   );

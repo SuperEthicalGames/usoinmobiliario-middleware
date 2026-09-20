@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { updatePassword } from 'firebase/auth';
+import { useSearchParams } from 'react-router-dom';
 import { api, ApiError, describeApiError } from '../api';
 import type { PaymentInfo } from '../types';
 import { useAuth } from '../AuthContext';
@@ -167,7 +168,11 @@ const TABS: { key: Tab; label: string }[] = [
 
 export function Configuracion() {
   const { isSuperAdmin } = useAuth();
-  const [tab, setTab] = useState<Tab>('general');
+  // ?tab=bitacora|usuarios abre esa pestaña directo (lo usa "Ver bitácora completa" del
+  // Dashboard) — cualquier otro valor cae a General.
+  const [searchParams] = useSearchParams();
+  const requestedTab = searchParams.get('tab');
+  const [tab, setTab] = useState<Tab>(TABS.some((t) => t.key === requestedTab) ? (requestedTab as Tab) : 'general');
 
   return (
     <div>

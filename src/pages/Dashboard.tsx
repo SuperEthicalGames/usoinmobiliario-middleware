@@ -205,7 +205,7 @@ export function Dashboard() {
                     </div>
                   ))}
                 </Card>
-                <Link to="/bitacora" className="mt-2 inline-block text-xs font-bold text-gold-dark hover:underline">
+                <Link to="/configuracion?tab=bitacora" className="mt-2 inline-block text-xs font-bold text-gold-dark hover:underline">
                   Ver bitácora completa →
                 </Link>
               </div>
