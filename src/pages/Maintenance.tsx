@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { api, describeApiError } from '../api';
 import type { Apartment, Categories, EmployeeOption, MaintenancePriority, MaintenanceStatus, MaintenanceTicket } from '../types';
 import { useAuth } from '../AuthContext';
+import { useHighlightRow } from '../lib/focusCode';
 import { AsyncSection, Button, Card, Field, PageHeader, Select, TextArea } from '../components/ui';
 import { MaintenanceStatusBadge, PriorityBadge } from '../components/StatusBadge';
 
@@ -93,6 +94,8 @@ export function Maintenance() {
   const [filter, setFilter] = useState<MaintenanceStatus | 'todos'>('todos');
   const [busyCode, setBusyCode] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  // Llegada desde una notificación (?code=): lleva esa tarea a la vista y la resalta.
+  const { highlighted, missingCode, dismissMissing } = useHighlightRow(!loading && data !== null);
 
   function load() {
     setLoading(true);
@@ -163,12 +166,18 @@ export function Maintenance() {
         </div>
 
         {actionError && <p className="rounded-xl bg-red/10 px-3.5 py-2.5 text-sm text-red-dark">{actionError}</p>}
+        {missingCode && (
+          <p className="flex items-start justify-between gap-3 rounded-xl bg-amber/10 px-3.5 py-2.5 text-sm text-amber-dark">
+            No encontramos el ticket <b>{missingCode}</b> en esta lista — puede que ya se haya completado o esté oculta por el filtro.
+            <button onClick={dismissMissing} className="shrink-0 font-bold hover:underline">Cerrar</button>
+          </p>
+        )}
 
         <AsyncSection loading={loading} error={error} data={filtered} empty="No hay tickets de mantenimiento con este filtro." onRetry={load}>
           {(tickets) => (
             <Card className="divide-y divide-line">
               {tickets.map((t) => (
-                <div key={t.code} className="flex flex-col gap-3 p-5 sm:flex-row sm:items-start sm:justify-between">
+                <div key={t.code} data-code={t.code} className={`flex flex-col gap-3 p-5 transition-colors duration-500 sm:flex-row sm:items-start sm:justify-between ${highlighted === t.code ? 'bg-gold/10 ring-2 ring-inset ring-gold' : ''}`}>
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-bold text-ink">{t.unitLabel}</span>

@@ -6,6 +6,7 @@ import { AsyncSection, Card, PageHeader, Button, fmtCOP, fmtDate } from '../comp
 import { StatusBadge, PaymentBadge } from '../components/StatusBadge';
 import { RecordDetail } from '../components/RecordDetail';
 import { PlusIcon, SearchIcon } from '../components/icons';
+import { useOpenFocusedRecord } from '../lib/focusCode';
 
 const STATUS_FILTERS: { key: ReservationStatus | 'todos'; label: string }[] = [
   { key: 'todos', label: 'Todas' },
@@ -23,6 +24,8 @@ export function Reservations() {
   const [filter, setFilter] = useState<ReservationStatus | 'todos'>('todos');
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<ReservationRecord | null>(null);
+  // Llegada desde una notificación (?code=) — abre directo el detalle de esa reserva.
+  const focus = useOpenFocusedRecord(setSelected);
 
   function load() {
     setLoading(true);
@@ -54,6 +57,12 @@ export function Reservations() {
         subtitle="Estadías — cada una nace pendiente con un HOLD de 15 minutos."
         action={<Link to="/reservas/nueva"><Button><PlusIcon className="h-4 w-4" />Nueva reserva</Button></Link>}
       />
+      {focus.error && (
+        <p className="mb-4 flex items-start justify-between gap-3 rounded-xl bg-red/10 px-3.5 py-2.5 text-sm text-red-dark">
+          {focus.error}
+          <button onClick={focus.dismissError} className="shrink-0 font-bold hover:underline">Cerrar</button>
+        </p>
+      )}
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <div className="flex flex-wrap gap-2">
           {STATUS_FILTERS.map((f) => (

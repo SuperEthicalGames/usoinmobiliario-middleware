@@ -5,6 +5,7 @@ import { AsyncSection, Card, ConfirmDialog, PageHeader, Button, Select, fmtCOP, 
 import { ChartCard, StatTile, TrendChart } from '../components/charts';
 import { monthKey, monthLabel, revenueByMonth, todayIsoBogota } from '../lib/analytics';
 import { downloadPaymentsReportPdf } from '../lib/paymentsPdf';
+import { useHighlightRow } from '../lib/focusCode';
 
 // Mismo criterio de filtrado que PaymentService.GetPendingVerificationAsync/GetPendingCashAsync
 // en Unity: traer TODAS las reservas (ya lo hace /admin/api/reservations) y derivar las dos
@@ -30,16 +31,20 @@ function receivedMethodLabel(r: ReservationRecord): string { return r.paymentRep
 type Action = 'verify' | 'reject' | 'cash';
 interface PendingConfirm { r: ReservationRecord; action: Action; }
 
-function ActionRow({ r, busyCode, onVerify, onReject, onCash }: {
+function ActionRow({ r, busyCode, highlighted, onVerify, onReject, onCash }: {
   r: ReservationRecord;
   busyCode: string | null;
+  highlighted?: boolean;
   onVerify?: (r: ReservationRecord) => void;
   onReject?: (r: ReservationRecord) => void;
   onCash?: (r: ReservationRecord) => void;
 }) {
   const busy = busyCode === r.code;
   return (
-    <div className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+    <div
+      data-code={r.code}
+      className={`flex flex-col gap-3 px-5 py-4 transition-colors duration-500 sm:flex-row sm:items-center sm:justify-between ${highlighted ? 'bg-gold/10 ring-2 ring-inset ring-gold' : ''}`}
+    >
       <div className="min-w-0">
         <div className="font-bold text-ink">{r.code} · {r.unitLabel}</div>
         <div className="text-xs text-muted">{r.name} · {fmtDate(r.checkin)} → {fmtDate(r.checkout)}</div>
@@ -76,6 +81,9 @@ export function Payments() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<PendingConfirm | null>(null);
   const [monthFilter, setMonthFilter] = useState<'todos' | string>('todos');
+  // Llegada desde una notificación (?code=): lleva la fila de ese pago a la vista y la resalta.
+  // Verificar/rechazar plata NO se dispara desde la notificación — siempre pasa por su diálogo.
+  const { highlighted, missingCode, dismissMissing } = useHighlightRow(!loading && data !== null);
 
   function load() {
     setLoading(true);
@@ -133,6 +141,12 @@ export function Payments() {
         Verificar/Registrar solo marca el PAGO como en orden — la reserva sigue en "pendiente" hasta que la confirmes aparte desde Reservas.
       </p>
       {actionError && <p className="mb-4 rounded-xl bg-red/10 px-3.5 py-2.5 text-sm text-red-dark">{actionError}</p>}
+      {missingCode && (
+        <p className="mb-4 flex items-start justify-between gap-3 rounded-xl bg-amber/10 px-3.5 py-2.5 text-sm text-amber-dark">
+          El pago de <b>{missingCode}</b> ya no está pendiente — se verificó, se rechazó o la reserva fue cancelada.
+          <button onClick={dismissMissing} className="shrink-0 font-bold hover:underline">Cerrar</button>
+        </p>
+      )}
       <AsyncSection loading={loading} error={error} data={data} onRetry={load}>
         {() => (
           <div className="space-y-8">
@@ -215,7 +229,7 @@ export function Payments() {
               <Card className="divide-y divide-line">
                 {pendingVerification.length === 0 && <p className="p-5 text-sm text-muted">No hay transferencias pendientes.</p>}
                 {pendingVerification.map((r) => (
-                  <ActionRow key={r.code} r={r} busyCode={busyCode}
+                  <ActionRow key={r.code} r={r} busyCode={busyCode} highlighted={highlighted === r.code}
                     onVerify={(rec) => setConfirming({ r: rec, action: 'verify' })}
                     onReject={(rec) => setConfirming({ r: rec, action: 'reject' })} />
                 ))}
@@ -228,7 +242,7 @@ export function Payments() {
               <Card className="divide-y divide-line">
                 {pendingCash.length === 0 && <p className="p-5 text-sm text-muted">No hay pagos en efectivo pendientes.</p>}
                 {pendingCash.map((r) => (
-                  <ActionRow key={r.code} r={r} busyCode={busyCode} onCash={(rec) => setConfirming({ r: rec, action: 'cash' })} />
+                  <ActionRow key={r.code} r={r} busyCode={busyCode} highlighted={highlighted === r.code} onCash={(rec) => setConfirming({ r: rec, action: 'cash' })} />
                 ))}
               </Card>
             </div>

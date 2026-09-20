@@ -90,6 +90,7 @@ export const api = {
 
   getNotifications: (limit = 50) => request<Notification[]>(`/notifications?limit=${limit}`),
   markNotificationRead: (id: string) => request<{ ok: true }>(`/notifications/${id}/read`, { method: 'POST' }),
+  markAllNotificationsRead: () => request<{ ok: true; updated: number }>('/notifications/read-all', { method: 'POST' }),
 
   pushSubscribe: (subscription: PushSubscriptionJSON) =>
     request<{ ok: true }>('/push/subscribe', { method: 'POST', body: JSON.stringify(subscription) }),

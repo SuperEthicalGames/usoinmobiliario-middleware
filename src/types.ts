@@ -292,11 +292,32 @@ export interface EmployeeOption {
   email: string | null;
 }
 
+// Datos estructurados del evento (whatsapp-assistant/src/firebase.js: notifyStaffOf*/createNotification).
+// Todos opcionales — las notificaciones anteriores a este modelo no traen `meta` y se muestran solo
+// con `message`.
+export interface NotificationMeta {
+  unit?: string;
+  person?: string;
+  checkin?: string;
+  checkout?: string;
+  nights?: number;
+  guests?: number;
+  amount?: number;
+  bank?: string;
+  reference?: string;
+  date?: string;
+  time?: string;
+  title?: string;
+  priority?: 'baja' | 'media' | 'alta';
+  detail?: string;
+}
+
 export interface Notification {
   id: string;
-  type: 'cleaning' | 'maintenance' | 'reservation' | 'payment' | 'system';
+  type: 'cleaning' | 'maintenance' | 'reservation' | 'payment' | 'visit' | 'system';
   message: string;
   targetCode: string | null;
+  meta?: NotificationMeta;
   read: boolean;
   createdAt: string;
 }

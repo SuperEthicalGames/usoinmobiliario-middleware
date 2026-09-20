@@ -4,6 +4,7 @@ import type { ReservationRecord, ReservationStatus } from '../types';
 import { AsyncSection, Card, PageHeader, fmtDate } from '../components/ui';
 import { StatusBadge } from '../components/StatusBadge';
 import { RecordDetail } from '../components/RecordDetail';
+import { useOpenFocusedRecord } from '../lib/focusCode';
 
 const STATUS_FILTERS: { key: ReservationStatus | 'todos'; label: string }[] = [
   { key: 'todos', label: 'Todas' },
@@ -20,6 +21,8 @@ export function Visits() {
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<ReservationStatus | 'todos'>('todos');
   const [selected, setSelected] = useState<ReservationRecord | null>(null);
+  // Llegada desde una notificación (?code=) — abre directo el detalle de esa visita.
+  const focus = useOpenFocusedRecord(setSelected);
 
   function load() {
     setLoading(true);
@@ -44,6 +47,12 @@ export function Visits() {
   return (
     <div>
       <PageHeader title="Visitas" subtitle="Citas para conocer un apartamento — específicas o generales, no bloquean fechas de alojamiento." />
+      {focus.error && (
+        <p className="mb-4 flex items-start justify-between gap-3 rounded-xl bg-red/10 px-3.5 py-2.5 text-sm text-red-dark">
+          {focus.error}
+          <button onClick={focus.dismissError} className="shrink-0 font-bold hover:underline">Cerrar</button>
+        </p>
+      )}
       <div className="mb-4 flex flex-wrap gap-2">
         {STATUS_FILTERS.map((f) => (
           <button

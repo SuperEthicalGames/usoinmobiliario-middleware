@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { api, describeApiError } from '../api';
 import type { Apartment, Categories, CleaningStatus, CleaningTask, EmployeeOption } from '../types';
 import { useAuth } from '../AuthContext';
+import { useHighlightRow } from '../lib/focusCode';
 import { AsyncSection, Button, Card, Field, PageHeader, Select, fmtDate } from '../components/ui';
 import { CleaningStatusBadge } from '../components/StatusBadge';
 
@@ -84,6 +85,8 @@ export function Cleaning() {
   const [filter, setFilter] = useState<CleaningStatus | 'todos'>('todos');
   const [busyCode, setBusyCode] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  // Llegada desde una notificación (?code=): lleva esa tarea a la vista y la resalta.
+  const { highlighted, missingCode, dismissMissing } = useHighlightRow(!loading && data !== null);
 
   function load() {
     setLoading(true);
@@ -155,12 +158,18 @@ export function Cleaning() {
         </div>
 
         {actionError && <p className="rounded-xl bg-red/10 px-3.5 py-2.5 text-sm text-red-dark">{actionError}</p>}
+        {missingCode && (
+          <p className="flex items-start justify-between gap-3 rounded-xl bg-amber/10 px-3.5 py-2.5 text-sm text-amber-dark">
+            No encontramos la tarea <b>{missingCode}</b> en esta lista — puede que ya se haya completado o esté oculta por el filtro.
+            <button onClick={dismissMissing} className="shrink-0 font-bold hover:underline">Cerrar</button>
+          </p>
+        )}
 
         <AsyncSection loading={loading} error={error} data={filtered} empty="No hay tareas de aseo con este filtro." onRetry={load}>
           {(tasks) => (
             <Card className="divide-y divide-line">
               {tasks.map((t) => (
-                <div key={t.code} className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
+                <div key={t.code} data-code={t.code} className={`flex flex-col gap-3 p-5 transition-colors duration-500 sm:flex-row sm:items-center sm:justify-between ${highlighted === t.code ? 'bg-gold/10 ring-2 ring-inset ring-gold' : ''}`}>
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-bold text-ink">{t.unitLabel}</span>
