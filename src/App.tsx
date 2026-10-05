@@ -17,6 +17,7 @@ const Payments = lazy(() => import('./pages/Payments').then((m) => ({ default: m
 const Visits = lazy(() => import('./pages/Visits').then((m) => ({ default: m.Visits })));
 const Configuracion = lazy(() => import('./pages/Configuracion').then((m) => ({ default: m.Configuracion })));
 const Contracts = lazy(() => import('./pages/Contracts').then((m) => ({ default: m.Contracts })));
+const Export = lazy(() => import('./pages/Export').then((m) => ({ default: m.Export })));
 const Cleaning = lazy(() => import('./pages/Cleaning').then((m) => ({ default: m.Cleaning })));
 const Maintenance = lazy(() => import('./pages/Maintenance').then((m) => ({ default: m.Maintenance })));
 
@@ -53,6 +54,7 @@ function Gate() {
             <Route path="pagos" element={<Payments />} />
             <Route path="visitas" element={<Visits />} />
             <Route path="contratos" element={<Contracts />} />
+            <Route path="exportar" element={<Export />} />
             <Route path="configuracion" element={<Configuracion />} />
           </Route>
           <Route path="aseo" element={<Cleaning />} />

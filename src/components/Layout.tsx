@@ -4,7 +4,7 @@ import { useAuth } from '../AuthContext';
 import logoIcon from '../assets/brand/logo-icon.webp';
 import { NotificationBell } from './NotificationBell';
 import {
-  BuildingIcon, CalendarIcon, CardIcon, ChartIcon, CloseIcon, DocumentIcon, GearIcon, GridIcon, LogoutIcon,
+  BuildingIcon, CalendarIcon, CardIcon, ChartIcon, CloseIcon, DocumentIcon, DownloadIcon, GearIcon, GridIcon, LogoutIcon,
   MenuIcon, PinIcon, SparkleIcon, WrenchIcon, type IconProps,
 } from './icons';
 
@@ -19,6 +19,7 @@ const STAFF_NAV_ITEMS: { to: string; label: string; end?: boolean; icon: Compone
   { to: '/pagos', label: 'Pagos', icon: CardIcon },
   { to: '/visitas', label: 'Visitas', icon: PinIcon },
   { to: '/contratos', label: 'Contratos', icon: DocumentIcon },
+  { to: '/exportar', label: 'Exportar', icon: DownloadIcon },
   { to: '/aseo', label: 'Aseo', icon: SparkleIcon },
   { to: '/mantenimiento', label: 'Mantenimiento', icon: WrenchIcon },
 ];
